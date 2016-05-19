@@ -88,6 +88,9 @@ main = do
         case parsed of
             Right x -> do
                 showMachine x
-                showResult x (initial x) (genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty) 0
-            _       -> return ()
+                let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
+                putStr "Test seq: "
+                print mySeq
+                showResult x (initial x) mySeq 0
+            Left y -> do putStrLn y; return ()
         return ()

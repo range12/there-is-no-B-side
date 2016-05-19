@@ -1,0 +1,32 @@
+{
+	"name" : "0n1n",
+		"alphabet": [ "0", "1", ".", "^", "$" ],
+		"blank" : ".",
+		"states" : [ "init", "seek_zero", "seek_one", "end_n" ],
+		"initial" : "init",
+		"finals" : [ "HALT" ],
+		"transitions" : {
+			"init": [
+				{ "read" : "^", "to_state": "init" , "write": "^", "action": "RIGHT"},
+				{ "read" : "0", "to_state": "seek_one" , "write": "^", "action": "RIGHT"},
+				{ "read" : "1", "to_state": "end_n" , "write": "1", "action": "RIGHT"},
+				{ "read" : ".", "to_state": "init" , "write": ".", "action": "RIGHT"},
+				{ "read" : "$", "to_state": "HALT" , "write": "y", "action": "RIGHT"}
+			],
+			"end_n": [
+				{ "read" : "1", "to_state": "end_n", "write": "1", "action": "RIGHT"},
+				{ "read" : "$", "to_state": "HALT", "write": "n", "action": "RIGHT"}
+			],
+			"seek_zero": [
+				{ "read" : "0", "to_state": "seek_one" , "write": ".", "action": "RIGHT"},
+				{ "read" : ".", "to_state": "seek_zero" , "write": ".", "action": "LEFT"},
+				{ "read" : "^", "to_state": "init" , "write": "^", "action": "RIGHT"}
+			],
+			"seek_one": [
+				{ "read" : ".", "to_state": "seek_one" , "write": ".", "action": "RIGHT"},
+				{ "read" : "$", "to_state": "HALT" , "write": "n", "action": "RIGHT"},
+				{ "read" : "1", "to_state": "seek_zero" , "write": ".", "action": "LEFT"},
+				{ "read" : "0", "to_state": "seek_one" , "write": "0", "action": "RIGHT"}
+			]
+		}
+}
