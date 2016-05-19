@@ -6,6 +6,7 @@ import System.Environment
 import Data.Aeson as Aeson
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
+import Data.List(find)
 
 
 goodElement :: [String] -> String -> Maybe (String, Int)
@@ -31,6 +32,35 @@ printTransitions ts
         print $ snd tmp
         printTransitions $ Map.delete (fst tmp) ts
 
+computeHelper :: Maybe Transition -> Seq.Seq String -> (Int -> Int) -> Int -> (String, Seq.Seq String, Int -> Int)
+computeHelper Nothing input f _  = ("", Seq.empty, f)
+computeHelper (Just t) input f i = (to_state t, Seq.update i (write t) input, f)
+
+-- transitions -> current state -> input -> index
+compute :: Map.Map String [Transition] -> String -> Seq.Seq String -> Int -> (String, Seq.Seq String, Int -> Int)
+compute tsMap state input i = computeHelper goodTrans input dir i where
+    currentSymbol = Seq.index input i
+    ts = tsMap Map.! state
+    goodTrans = find (\x -> Turing.read x == currentSymbol) ts -- returns THE Transition
+    dir = case goodTrans of
+        Just y -> if action y == "RIGHT" then (+) 1 else (\x -> x - 1)
+        Nothing -> (-) 99999999
+
+
+showResult :: Machine -> String -> Seq.Seq String -> Int -> IO ()
+showResult x currentState input i
+    | currentState `elem` finals x = do putStrLn "The END"; print input
+    | otherwise = do
+        putStrLn $ "Current state: " ++ currentState ++ "  . i: " ++ show i
+        print input
+        showResult x newState newInput (newDir i)
+    where
+        computed = compute (transitions x) currentState input i
+        newState = case computed of (a, _, _) -> a
+        newInput = case computed of (_, a, _) -> a
+        newDir = case computed of (_, _, op) -> op
+
+
 showMachine :: Machine -> IO ()
 showMachine x = do
     putStrLn (name x)
@@ -45,19 +75,19 @@ showMachine x = do
     print $ finals x
     putStrLn ""
     printTransitions (transitions x)
-    return ()
+    putStrLn ""
 
 main :: IO ()
 main = do
     args <- getArgs
     if length args /= 2
-    then do
-        putStrLn "Error. Parameters!!"
-        return ()
+    then putStrLn "Error. Parameters!!"
     else do
         myJson <- B.readFile $ head args
         let parsed = Aeson.eitherDecode myJson :: Either String Machine
         case parsed of
-            Right x -> showMachine x
+            Right x -> do
+                showMachine x
+                showResult x (initial x) (genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty) 0
             _       -> return ()
         return ()
