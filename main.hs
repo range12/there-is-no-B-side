@@ -33,7 +33,7 @@ printTransitions ts
         printTransitions $ Map.delete (fst tmp) ts
 
 computeHelper :: Maybe Transition -> Seq.Seq String -> (Int -> Int) -> Int -> (String, Seq.Seq String, Int -> Int)
-computeHelper Nothing input f _  = ("", Seq.empty, f)
+computeHelper Nothing _ f _  = ("", Seq.empty, f)
 computeHelper (Just t) input f i = (to_state t, Seq.update i (write t) input, f)
 
 -- transitions -> current state -> input -> index
