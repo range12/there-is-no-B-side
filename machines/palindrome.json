@@ -46,7 +46,7 @@
 
     "go_first_ok" : [
       { "read" : "A", "to_state": "go_first_ok" , "write": "A", "action": "LEFT"},
-      { "read" : "B", "to_state": "go_first_ok" , "write": "A", "action": "LEFT"},
+      { "read" : "B", "to_state": "go_first_ok" , "write": "B", "action": "LEFT"},
       { "read" : "^", "to_state": "read_first_char" , "write": ".", "action": "RIGHT"}
     ],
 
