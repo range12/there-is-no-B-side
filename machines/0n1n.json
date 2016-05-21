@@ -2,7 +2,7 @@
 	"name" : "0n1n",
 		"alphabet": [ "0", "1", ".", "^", "$" ],
 		"blank" : ".",
-		"states" : [ "init", "seek_zero", "seek_one", "end_n" ],
+		"states" : [ "init", "seek_zero", "seek_one", "end_n", "HALT" ],
 		"initial" : "init",
 		"finals" : [ "HALT" ],
 		"transitions" : {

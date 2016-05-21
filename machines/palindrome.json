@@ -5,7 +5,7 @@
 	"states" : [
     "init", "read_first_char", "a_go_last", "a_check_last_char", "go_first",
     "check_end0", "check_end0", "check_end1", "go_first_ok", "write_y", "write_n",
-    "b_go_last", "b_check_last_char" ],
+    "b_go_last", "b_check_last_char", "HALT" ],
 	"initial" : "init",
 	"finals" : [ "HALT" ],
 	"transitions" : {
