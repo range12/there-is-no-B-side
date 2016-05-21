@@ -7,7 +7,7 @@
 	"finals" : [ "HALT" ],
 	"transitions" : {
 		"init": [
-			{ "read" : "^", "to_state": "read_first_char" , "write": ".", "action": "RIGHT"}
+			{ "read" : "^", "to_state": "check_end0" , "write": "^", "action": "RIGHT"}
 		],
 
     "read_first_char": [
