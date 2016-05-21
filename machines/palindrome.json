@@ -28,7 +28,7 @@
 
     "go_first": [
       { "read" : "A", "to_state": "go_first" , "write": "A", "action": "LEFT"},
-      { "read" : "B", "to_state": "go_first" , "write": "A", "action": "LEFT"},
+      { "read" : "B", "to_state": "go_first" , "write": "B", "action": "LEFT"},
       { "read" : "^", "to_state": "check_end0" , "write": "^", "action": "RIGHT"}
     ],
 
