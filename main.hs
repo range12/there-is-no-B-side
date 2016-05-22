@@ -1,12 +1,12 @@
 module Main where
 
 import Turing
-import Data.ByteString.Lazy as B(readFile)
+import qualified Data.ByteString.Lazy as B(readFile)
 import System.Environment
-import Data.Aeson as Aeson
+import qualified Data.Aeson as Aeson
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
-import Data.List(find)
+import Data.List (find)
 
 
 goodElement :: [String] -> String -> Maybe (String, Int)

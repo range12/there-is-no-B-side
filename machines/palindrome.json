@@ -1,6 +1,6 @@
 {
 	"name" : "palindrome",
-	"alphabet": [ "A", "B", ".", "^", "$", "#" ],
+	"alphabet": [ "A", "B", ".", "^", "$", "#", "y", "n" ],
 	"blank" : ".",
 	"states" : [
     "init", "read_first_char", "a_go_last", "a_check_last_char", "go_first",
