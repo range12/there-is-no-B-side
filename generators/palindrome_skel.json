@@ -3,7 +3,7 @@
 	"alphabet": [ "A", ".", "^", "$", "#", "y", "n" ],
 	"blank" : ".",
 	"states" : [
-    "init", "read_first_char", "A_go_last", "A_check_last_char", "go_first",
+    "A_go_last", "A_check_last_char", "init", "read_first_char", "go_first",
     "check_end0", "check_end0", "check_end1", "go_first_ok", "write_y", "write_n", "HALT"
 	],
 	"initial" : "init",

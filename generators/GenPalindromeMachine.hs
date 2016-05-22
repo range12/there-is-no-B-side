@@ -10,18 +10,19 @@ import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.Text.Lazy as T (Text)
 import Text.Printf (printf)
 import Turing
+import qualified Data.Map.Strict as Map
 
 type Symbol = String
 type TState = String
 type Alphabet = [Symbol]
 
-buildReadFirstCharSt :: Alphabet -> (Symbol, Int) -> Transition -> [Transition]
+buildReadFirstCharSt :: Alphabet -> Int -> Transition -> [Transition]
 buildReadFirstCharSt [] _ _ = []
-buildReadFirstCharSt a:as syms@(iniChr, skSymLen) skelTrans =
-    let Transition _ toSt _ act = skelTrans
+buildReadFirstCharSt a:as skSymLen skelTrans =
+    let Transition _ toSt iniSym act = skelTrans
         aGoLastSt = (a : drop skSymLen toSt) in
-    Transition a aGoLastSt iniChr act :
-    buildReadFirstCharSt as syms skelTrans
+    Transition a aGoLastSt iniSym act :
+    buildReadFirstCharSt as iniSym skelTrans
 
 buildXGoLastSt :: Alphabet -> (Symbol, Symbol, Int) -> (Transition, Transition) -> [Transition]
 buildXGoLastSt [] (sym, endSym, blank, skSymLen) (_, chkLastSkTr) =
@@ -84,18 +85,24 @@ buildTrans blank e@(i,f) a:as =  : buildTrans blank e as
 		seek_end_trans = Transition f state_find_last f "LEFT" : 
 		states =
 
-buildMachine :: Symbol -> Alphabet -> Machine -> Machine 
-buildMachine blank alpha = Machine "" [alpha, blank] blank statesM inialM finalsM transitionsM
+buildMachine :: Alphabet -> Machine -> Machine 
+buildMachine alpha skel = Machine nameM nuAlpha (blank skel) FUBAR initalM finalsM transitionsM
 	where
-		customTrans = buildStates blank (head alpha, last alpha) (init $ tail $ alpha)
-		statesM = "init" : (fmap fst customTrans ++) "HALT": [] 
+        nameM = "generated_palindrome"
+        skelSym = head $ alphabet skel
+        nuAlpha = alpha ++ tail (alphabet skel)
+		statesM = drop 2 $ states skel
+        skelStates = (drop (length skelSym)) <$> (take 2 $ states skel)
 		initialM = "init"
 		finalsM = ["HALT"]
-		transitionsM = fmap snd customTrans
+        nuStatesM = (++) <$> alpha <*> fmap head (replicate (length alpha) skelStates)
+        skelTrans = transitions skel
+        transitionsM = M.fromList $  
+        
 
 usage = do
 	p <- getProgName
-	fail $ printf "Usage: %s <Blank> <Blank-separated Init-Alphabet-End>\n" p
+	fail $ printf "Usage: %s <Separator> <Alphabet>\n" p
 
 
 readSkeleton :: IO Machine
