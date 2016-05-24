@@ -1,0 +1,34 @@
+---
+format_input_model: >
+    [&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:Write][Sym:ToState][!TapeAction][&TRANS]....>
+    >(More Transitions)...[&INIT][Sym:InitialState][&INPUT]...(Symbols:Input)...[&EOI]
+
+
+alphabet:
+    Host_blank: &host_blank "&BLANK"
+    Host_tags: &host_tags ["&TAPE_START", "&TRANS", "&INIT", "&INPUT", "&EOI"]
+    Guest_final: !HALT
+    Guest_shift: &host_shift ["!LSH", "!RSH"]
+    Guest_free_symbols: &guest_free_syms "SYM"
+    Reciprocal_to_free_symbols: &reciprocal_to_free "~SYM"
+
+special_states:
+    initial: "host_initial"
+    finals: ["host_halt", "error"]
+
+transitions:
+    host_initial:
+        - excludes: []
+          trans: { read: "&INIT", write: "&BLANK", toState: guest_init, tape: RIGHT }
+        - excludes: []
+          trans: { read: "&EOI", write: "&EOI", toState: error, tape: RIGHT }
+        - excludes: []
+          trans: { read: SYM write: SYM toState: host_initial tape: RIGHT }
+        - excludes: ["&INIT", "&EOI"]
+          trans: { read: ANY, write: ANY, toState: host_initial, tape: RIGHT }
+     
+    guest_init:
+        - excludes: []
+          trans: {read: SYM, write: "&BLANK", toState: guest_state_{SYM}_get_input, tape: RIGHT }
+
+...

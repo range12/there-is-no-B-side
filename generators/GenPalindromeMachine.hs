@@ -119,3 +119,4 @@ main = do
 												_ -> usage >> undefined
 	let alphabet = T.unpack <$> T.splitOn blank rawAlpha
 	buildMachine (T.unpack blank) alphabet skelMachine
+    -- WIP

@@ -1,0 +1,83 @@
+
+[&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:Write][Sym:ToState][!TapeAction][&TRANS]....>
+>(More Transitions)...[&INIT][Sym:InitialState][&INPUT]...(Symbols:Input)...[&EOI]
+
+
+{
+	alphabet:
+		Host_tags: &TAPE_START, &BLANK, &TRANS, &INIT, &INPUT, &EOI
+		Host_blank: &BLANK
+		Guest_actions: !LSH, !RSH, !LSH_HALT, !RSH_HALT
+		Guest_final: !HALT
+		Guest_free_symbols: {SYM}
+		Reciprocal_to_free_symbols: ~{SYM}
+
+	special_states:
+		initial: host_initial
+		finals: host_halt, error
+}
+
+host_initial:
+	-> read: &INIT write:&BLANK toState: guest_init tape: RIGHT
+	-> read: &EOI write:&EOI toState: error tape: RIGHT
+	-> read: ... write: ... toState: host_initial tape: RIGHT
+
+guest_init:
+	-> read: {Sym} write: &BLANK toState: guest_state_{SYM}_get_input tape: RIGHT
+
+guest_state_{SYM}_get_input: (SYM => any guest symbol; ~SYM => reserved, mapped reciprocal symbol)
+	-> read: &INPUT write: &INPUT toState: guest_state_{SYM}_get_input tape: RIGHT
+	-> read: &EOI write: &EOI toState: host_halt tape: RIGHT
+	-> read: {Sym} write: {~Sym} toState: guest_state_{SYM}_read_{SYM}_rewind  tape: LEFT
+
+guest_state_{SYM}_read_{SYM}_rewind:
+	-> read: &TAPE_START write: &TAPE_START toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
+	-> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_rewind tape: LEFT
+
+guest_state_{SYM}_read_{SYM}_find_trans:
+	-> read: &EOI write: &EOI toState: error tape: RIGHT
+	-> read: &TRANS write: &TRANS toState: guest_state_{SYM}_read_{SYM}_check_trans_state tape: RIGHT
+	-> read: &INPUT write: &INPUT toState: error tape: RIGHT
+	-> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
+
+guest_state_{State:SYM}_read_{Input:SYM}_check_trans_state:
+	-> read: &* write: &* toState: error tape: RIGHT
+	-> read: ~* write: ~* toState: error tape: RIGHT
+	-> read: !* write: !* toState: error tape: RIGHT
+	-> read: {State:SYM} write: {State:SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_check_trans_input tape: RIGHT
+	-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_find_trans tape: RIGHT
+
+guest_state_{State:SYM}_read_{Input:SYM}_check_trans_input:
+	-> read: &* write: &* toState: error tape: RIGHT
+	-> read: ~* write: ~* toState: error tape: RIGHT
+	-> read: !* write: !* toState: error tape: RIGHT
+	-> read: {Input:SYM} write: {Input:SYM} toState: guest_return_{~Input:SYM}_to_state tape: RIGHT
+	-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_find_trans tape: RIGHT
+
+guest_return_{~Input:SYM}_to_state:
+	-> read: &* write: &* toState: error tape: RIGHT
+	-> read: ~* write: ~* toState: error tape: RIGHT
+	-> read: !* write: !* toState: error tape: RIGHT
+	-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_return_{~Input:SYM}_get_output tape: RIGHT
+
+guest_state_{State:SYM}_return_{~Input:SYM}_get_output:
+	-> read: &* write: &* toState: error tape: RIGHT
+	-> read: ~* write: ~* toState: error tape: RIGHT
+	-> read: !* write: !* toState: error tape: RIGHT
+	-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_return_{~Input:SYM}_write_{Write:SYM}_get_shift tape: RIGHT
+
+guest_state_{State:SYM}_return_{~Input:SYM}_write_{Write:SYM}_get_shift:
+	-> read: &* write: &* toState: error tape: RIGHT
+	-> read: ~* write: ~* toState: error tape: RIGHT
+	-> read: {SYM} write: {SYM} toState: error tape: RIGHT
+	-> read: !* write: !* toState: guest_state_{State:SYM}_return_{~Input:SYM}_write_{Write:SYM}_shift_{!*}_return tape: RIGHT
+
+guest_state_{State:SYM}_return_{~Input:SYM}_write_{Write:SYM}_shift_{!Shift}_return:
+	-> read: &EOI write: &EOI toState: error tape: RIGHT
+	-> read: {~Input:SYM} write: {Write:SYM} toState: guest_state_{State:SYM}_get_input tape: {!Shift}
+	-> read: * write: * toState: guest_return_{~Input:SYM}_write_{Write:SYM}_shift_{!Shift}_return tape: RIGHT
+
+guest_state_{State:SYM}_return_{~Input:SYM}_write_{Write:SYM}_shift_{!HALT}_return:
+	-> read: &EOI write: &EOI toState: error tape: RIGHT
+	-> read: {~Input:SYM} write: {Write:SYM} toState: guest_state_{State:SYM}_halt tape: {!Shift}
+	-> read: * write: * toState: guest_return_{~Input:SYM}_write_{Write:SYM}_shift_{!Shift}_return tape: RIGHT
