@@ -55,7 +55,7 @@ showResult x currentState input i
         print input
         showResult x newState newInput (newDir i)
     where
-        computed = compute (transitions x) currentState input i
+        computed = compute (transitions x) currentState input i -- Agrandir la sequence
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
         newDir = case computed of (_, _, op) -> op

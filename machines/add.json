@@ -2,7 +2,7 @@
     "name": "unary_add",
     "alphabet": ["1", ".", "+", "="],
     "blank": ".",
-    "states": ["scanright", "addone", "skip", "HALT"],
+    "states": ["scanright", "addone", "HALT"],
     "initial":"scanright",
     "finals": ["HALT"],
 
