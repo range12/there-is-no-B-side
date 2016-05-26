@@ -1,0 +1,77 @@
+{
+  "name" : "test 5",
+  "alphabet" : [
+    "&TAPE_START", "&BLANK", "&TRANS", "&INIT", "&INPUT", "&EOI",
+    "!LSH", "!RSH", "!LSH_HALT", "!RSH_HALT", "!HALT",
+    "1", "+", ".", "=", "~1", "~+", "~.", "~="
+  ],
+  "blank" : "&BLANK",
+  "states" : [],
+  "initial" : "host_initial",
+  "finals" : [ "host_halt", "error" ],
+
+  "transitions" : {
+    "host_initial" : [
+      { "read" : "&INIT", "write" : "&BLANK", "to_state" : "guest_init", "tape" : "RIGHT" }
+      { "read" : "&EOI", "write" : "&EOI", "to_state" : "error", "tape" : "RIGHT" },
+      { "read": "1", "to_state": "host_initial" , "write": "1", "action": "RIGHT" },
+      { "read": ".", "to_state": "host_initial" , "write": ".", "action": "RIGHT" },
+      { "read": "=", "to_state": "host_initial" , "write": "=", "action": "RIGHT" },
+      { "read": "A", "to_state": "host_initial" , "write": "A", "action": "RIGHT" },
+      { "read": "B", "to_state": "host_initial" , "write": "B", "action": "RIGHT" }
+    ],
+    "guest_init" : [
+      { "read" : "A", "to_state" : "guest_state_A_get_input", "write" : "&BLANK", "tape" : "RIGHT"  },
+      { "read" : "B", "to_state" : "guest_state_B_get_input", "write" : "&BLANK", "tape" : "RIGHT"  }
+    ],
+
+
+
+    "guest_state_A_get_input" : [
+      { "read" : "&INPUT", "to_state" : "guest_state_A_get_input", "write" : "&INPUT", "tape" : "RIGHT" }
+      { "read" : "&EOI", "to_state" : "host_halt", "write" : "&EOI", "tape" : "RIGHT" },
+      { "read" : "1", "to_state" : "guest_state_A_read_1_rewind", "write" : "~1", "tape" : "RIGHT" },
+      { "read" : "+", "to_state" : "guest_state_A_read_+_rewind", "write" : "~+", "tape" : "RIGHT" },
+      { "read" : ".", "to_state" : "guest_state_A_read_._rewind", "write" : "~.", "tape" : "RIGHT" },
+      { "read" : "=", "to_state" : "guest_state_A_read_=_rewind", "write" : "~=", "tape" : "RIGHT" }
+    ],
+
+    "guest_state_A_read_1_rewind" : [
+      { "read" : "&TAPE_START", "to_state" : "guest_state_A_read_1_find_trans", "write" : "&TAPE_START", "tape" : "RIGHT" },
+      { "read" : "1", "to_state": "guest_state_A_read_1_rewind", "write": "1", "action": "LEFT" },
+      { "read" : "+", "to_state": "guest_state_A_read_1_rewind", "write": "=", "action": "LEFT" },
+      { "read" : "=", "to_state": "guest_state_A_read_1_rewind", "write": "=", "action": "LEFT" },
+      { "read" : ".", "to_state": "guest_state_A_read_1_rewind", "write": ".", "action": "LEFT" },
+      { "read" : "~1", "to_state": "guest_state_A_read_1_rewind", "write": "~1", "action": "LEFT" },
+      { "read" : "~+", "to_state": "guest_state_A_read_1_rewind", "write": "~+", "action": "LEFT" },
+      { "read" : "~=", "to_state": "guest_state_A_read_1_rewind", "write": "~=", "action": "LEFT" },
+      { "read" : "~.", "to_state": "guest_state_A_read_1_rewind", "write": "~.", "action": "LEFT" },
+      { "read" : "&BLANK", "to_state": "guest_state_A_read_1_rewind", "write": "&BLANK", "action": "LEFT" },
+      { "read" : "&TRANS", "to_state": "guest_state_A_read_1_rewind", "write": "&TRANS", "action": "LEFT" },
+      { "read" : "&INIT", "to_state": "guest_state_A_read_1_rewind", "write": "&INIT", "action": "LEFT" },
+      { "read" : "&INPUT", "to_state": "guest_state_A_read_1_rewind", "write": "&INPUT", "action": "LEFT" },
+      { "read" : "&EOI", "to_state": "guest_state_A_read_1_rewind", "write": "&EOI", "action": "LEFT" },
+      { "read" : "!LSH", "to_state": "guest_state_A_read_1_rewind", "write": "!LSH", "action": "LEFT" },
+      { "read" : "!RSH", "to_state": "guest_state_A_read_1_rewind", "write": "!RSH", "action": "LEFT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_state_A_read_1_rewind", "write": "!LSH_HALT", "action": "LEFT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_state_A_read_1_rewind", "write": "!RSH_HALT", "action": "LEFT" }
+      { "read" : "!HALT", "to_state": "guest_state_A_read_1_rewind", "write": "!HALT", "action": "LEFT" }
+    ],
+    "guest_state_A_read_1_find_trans" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "guest_state_A_read_1_check_trans_state", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "guest_state_A_read_1_find_trans", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "1", "to_state": "guest_state_A_read_1_find_trans", "write": "1", "action": "RIGHT" },
+      { "read" : "+", "to_state": "guest_state_A_read_1_find_trans", "write": "+", "action": "RIGHT" },
+      { "read" : ".", "to_state": "guest_state_A_read_1_find_trans", "write": ".", "action": "RIGHT" },
+      { "read" : "=", "to_state": "guest_state_A_read_1_find_trans", "write": "=", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_state_A_read_1_find_trans", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_state_A_read_1_find_trans", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_state_A_read_1_find_trans", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_state_A_read_1_find_trans", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_state_A_read_1_find_trans", "write": "!HALT", "action": "RIGHT" }
+    ],
+    "guest_state_A_read_1_check_trans_state" : []
+  }
+}

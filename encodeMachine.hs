@@ -31,4 +31,4 @@ main = do
     args <- getArgs
     case args of
         (x:(y:_)) -> readJsonFile x y
-        _ -> putStrLn "Error: Argument!!!"
+        _ -> putStrLn "Error: parameters\n Usage: ./program machine.json \"input\""
