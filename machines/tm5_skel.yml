@@ -16,21 +16,17 @@ Alphabet:
     Glob_reciprocal_to_free_symbols: &glob_reciprocal_to_free_symbols "~*"
     # Glob_any: except ~* category ? They are unliky to be met upon wide globbing.
     Glob_any: &glob_any "***"
-    Collection: <<: [*host_tags, *guest_shift, *guest_free_symbols, *reciprocal_to_free_symbols]
+    Collection: [*host_tags, *guest_shift, *guest_free_symbols, *reciprocal_to_free_symbols]
     
 Actions:
-    ? &left LEFT
-    ? &right RIGHT
+    - &left LEFT
+    - &right RIGHT
 
 Patterns: # For use in generated states
     Repeat_read: &read_pattern "%READ%"
     Inherited_nth: "%%"
     Symbol_reciprocal: "~~"
     Repeat_current_state_pattern: &current_state_pattern "%STATE%"
-
-Special_states:
-    initial: "host_initial"
-    finals: ["final_%%", "error"]
 
 # Locally, Foreach starting state of a transition:
 #   Foreach transition:
@@ -50,16 +46,17 @@ Special_states:
 Transitions:
 
     # Forward-anchoring patterns ----------------------------------------------
-    &get_input "guest_state_%%_get_input": null
-    &rewind "guest_state_%%_read_%%_rewind": null
-    &find_trans "guest_state_%%_read_%%_find_trans": null
-    &trans_check_state "guest_state_%%_read_%%_check_trans_state": null
-    &trans_check_input "guest_state_%%_read_%%_check_trans_input": null
-    &get_state_return "guest_return_%%_to_state": null
-    &get_output_return "guest_return_%%_state_%%_get_output": null
-    &get_shift_return "guest_return_%%_state_%%_write_%%_get_shift": null
-    &return_halt "guest_return_%%_state_%%_write_%%_shift_%%_halt": null
-    &return_get_input "guest_return_%%_state_%%_write_%%_shift_%%_return": null
+    ? &get_input "guest_state_%%_get_input"
+    ? &rewind "guest_state_%%_read_%%_rewind"
+    ? &find_trans "guest_state_%%_read_%%_find_trans"
+    ? &trans_check_state "guest_state_%%_read_%%_check_trans_state"
+    ? &trans_check_input "guest_state_%%_read_%%_check_trans_input"
+    ? &get_state_return "guest_return_%%_to_state"
+    ? &get_output_return "guest_return_%%_state_%%_get_output"
+    ? &get_shift_return "guest_return_%%_state_%%_write_%%_get_shift"
+    ? &return_halt "guest_return_%%_state_%%_write_%%_shift_%%_halt"
+    ? &return_get_input "guest_return_%%_state_%%_write_%%_shift_%%_return"
+    ? &guest_final "final_%%"
     # -------------------------------------------------------------------------
 
     host_initial:
@@ -96,19 +93,19 @@ Transitions:
 
     *get_input:
     # "guest_state_%%_get_input"
-	    #-> read: &INPUT write: &INPUT toState: guest_state_{SYM}_get_input tape: RIGHT
+        #-> read: &INPUT write: &INPUT toState: guest_state_{SYM}_get_input tape: RIGHT
         - if_reads_then_writes:
             - &read "&INPUT" : *read
           pattern: *current_state_pattern
           params: []
           action: *right
-	     #-> read: &EOI write: &EOI toState: host_halt tape: RIGHT
+         #-> read: &EOI write: &EOI toState: host_halt tape: RIGHT
         - if_reads_then_writes:
             - &read "&EOI" : *read
           pattern: error
           params: []
           action: *right
-	     #-> read: {Sym} write: {~Sym} toState: guest_state_{SYM}_read_{SYM}_rewind  tape: LEFT
+         #-> read: {Sym} write: {~Sym} toState: guest_state_{SYM}_read_{SYM}_rewind  tape: LEFT
         - if_reads_then_writes:
             - "SYM*" : "~~%READ%"
           pattern: *rewind
@@ -118,15 +115,15 @@ Transitions:
 
     *rewind: 
     # "guest_state_%%_read_%%_rewind"
-	    # -> read: &TAPE_START write: &TAPE_START toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
+        # -> read: &TAPE_START write: &TAPE_START toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
         - if_reads_then_writes:
             - &read "&TAPE_START" : *read
           pattern: *find_trans
           params: [ "%%0", "%%1" ]
           action: *right
-	    # -> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_rewind tape: LEFT
+        # -> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_rewind tape: LEFT
         - if_reads_then_writes:
-            - "***" : &read_pattern
+            - "***" : *read_pattern
           pattern: *rewind
           params: ["%%0", "%%1"]
           action: *left
@@ -134,18 +131,18 @@ Transitions:
     
     *find_trans:
     # "guest_state_%%_read_%%_find_trans"
-    	#-> read: &TRANS write: &TRANS toState: guest_state_{SYM}_read_{SYM}_check_trans_state tape: RIGHT
+        #-> read: &TRANS write: &TRANS toState: guest_state_{SYM}_read_{SYM}_check_trans_state tape: RIGHT
         - if_reads_then_writes:
             - &read "&TRANS" : *read
           pattern: *trans_check_state
           params: ["%%0", "%%1"]
           action: *right
-    	#-> read: &EOI write: &EOI toState: error tape: RIGHT
-    	#-> read: &INPUT write: &INPUT toState: error tape: RIGHT
-    	#-> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
+        #-> read: &EOI write: &EOI toState: error tape: RIGHT
+        #-> read: &INPUT write: &INPUT toState: error tape: RIGHT
+        #-> read: ... write: ... toState: guest_state_{SYM}_read_{SYM}_find_trans tape: RIGHT
         - if_reads_then_writes:
             - "SYM*" : *read_pattern
-            - *glob_tape_action : *read_pattern
+            - *glob_tape_actions : *read_pattern
           pattern: *current_state_pattern
           params: []
           action: *right
@@ -153,10 +150,10 @@ Transitions:
     
     *trans_check_state:
     # "guest_state_%%_read_%%_check_trans_state":
-    	#-> read: &* write: &* toState: error tape: RIGHT
-    	#-> read: ~* write: ~* toState: error tape: RIGHT
-    	#-> read: !* write: !* toState: error tape: RIGHT
-    	#-> read: {State:SYM} write: {State:SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_check_trans_input tape: RIGHT
+        #-> read: &* write: &* toState: error tape: RIGHT
+        #-> read: ~* write: ~* toState: error tape: RIGHT
+        #-> read: !* write: !* toState: error tape: RIGHT
+        #-> read: {State:SYM} write: {State:SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_check_trans_input tape: RIGHT
         - if_reads_then_writes:
             - "%%0" : *read_pattern
           pattern: *trans_check_input
@@ -164,23 +161,23 @@ Transitions:
           action: *right
         - if_reads_then_writes:
             - "SYM*" : *read_pattern
-         pattern: *find_trans
-         params: ["%%0", "%%1"]
-         action: *right
+          pattern: *find_trans
+          params: ["%%0", "%%1"]
+          action: *right
 
 
     *trans_check_input:
     # "guest_state_%%_read_%%_check_trans_input"
-    	#-> read: &* write: &* toState: error tape: RIGHT
-    	#-> read: ~* write: ~* toState: error tape: RIGHT
-    	#-> read: !* write: !* toState: error tape: RIGHT
-    	#-> read: {Input:SYM} write: {Input:SYM} toState: guest_return_{~Input:SYM}_to_state tape: RIGHT
+        #-> read: &* write: &* toState: error tape: RIGHT
+        #-> read: ~* write: ~* toState: error tape: RIGHT
+        #-> read: !* write: !* toState: error tape: RIGHT
+        #-> read: {Input:SYM} write: {Input:SYM} toState: guest_return_{~Input:SYM}_to_state tape: RIGHT
         - if_reads_then_writes:
             - "%%1" : *read_pattern
           pattern: *get_state_return
           params: ["~~%%1"]
           action: *right
-    	#-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_find_trans tape: RIGHT
+        #-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_read_{Input:SYM}_find_trans tape: RIGHT
         - if_reads_then_writes:
             - "SYM*" : *read_pattern
           transitions_to: [*current_state_pattern]
@@ -190,10 +187,10 @@ Transitions:
 
     *get_state_return:
     # "guest_return_%%_get_state"
-    	#-> read: &* write: &* toState: error tape: RIGHT
-    	#-> read: ~* write: ~* toState: error tape: RIGHT
-    	#-> read: !* write: !* toState: error tape: RIGHT
-    	#-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_return_{~Input:SYM}_get_output tape: RIGHT
+        #-> read: &* write: &* toState: error tape: RIGHT
+        #-> read: ~* write: ~* toState: error tape: RIGHT
+        #-> read: !* write: !* toState: error tape: RIGHT
+        #-> read: {SYM} write: {SYM} toState: guest_state_{State:SYM}_return_{~Input:SYM}_get_output tape: RIGHT
         - if_reads_then_writes:
             - "SYM*" : *read_pattern
           pattern: *get_output_return
@@ -202,10 +199,10 @@ Transitions:
 
     *get_output_return:
     #"guest_return_%%_state_%%_get_output"
-    	#-> read: &* write: &* toState: error tape: RIGHT
-    	#-> read: ~* write: ~* toState: error tape: RIGHT
-    	#-> read: !* write: !* toState: error tape: RIGHT
-    	#-> read: {SYM} write: {SYM} toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_get_shift tape: RIGHT
+        #-> read: &* write: &* toState: error tape: RIGHT
+        #-> read: ~* write: ~* toState: error tape: RIGHT
+        #-> read: !* write: !* toState: error tape: RIGHT
+        #-> read: {SYM} write: {SYM} toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_get_shift tape: RIGHT
         - if_reads_then_writes:
             - "SYM*" : *read_pattern
           pattern: *get_shift_return
@@ -215,27 +212,27 @@ Transitions:
 
     *get_shift_return:
     #"guest_return_%%_state_%%_write_%%_get_shift"
-    	#-> read: &* write: &* toState: error tape: RIGHT
-    	#-> read: ~* write: ~* toState: error tape: RIGHT
-    	#-> read: {SYM} write: {SYM} toState: error tape: RIGHT
-    	#-> read: !* write: !* toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_shift_{!*}_return tape: RIGHT
+        #-> read: &* write: &* toState: error tape: RIGHT
+        #-> read: ~* write: ~* toState: error tape: RIGHT
+        #-> read: {SYM} write: {SYM} toState: error tape: RIGHT
+        #-> read: !* write: !* toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_shift_{!*}_return tape: RIGHT
         - if_reads_then_writes:
-            - "!LSH_HALT" : *read_pattern
+            - &read "!LSH_HALT" : *read
           pattern: *return_halt
           params: ["%%0", "%%1", "%%2", *left]
           action: *right
         - if_reads_then_writes:
-            - "!RSH_HALT" : *read_pattern
+            - &read "!RSH_HALT" : *read
           pattern: *return_halt
           params: ["%%0", "%%1", "%%2", *right]
           action: *right
         - if_reads_then_writes:
-            - "!RSH" : *read_pattern
+            - &read "!RSH" : *read
           pattern: *return_get_input
           params: ["%%0", "%%1", "%%2", *right]
           action: *right
         - if_reads_then_writes:
-            - "!LSH" : *read_pattern
+            - &read "!LSH" : *read
           pattern: *return_get_input
           params: ["%%0", "%%1", "%%2", *left]
           action: *right
@@ -261,9 +258,9 @@ Transitions:
     
     *return_get_input:
     # "guest_return_%%_state_%%_write_%%_shift_%%_return":
-    	#-> read: &EOI write: &EOI toState: error tape: RIGHT
-    	#-> read: {~Input:SYM} write: {Write:SYM} toState: guest_state_{State:SYM}_get_input tape: {!Shift}
-    	#-> read: * write: * toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_shift_{!Shift}_retur tape: RIGHT
+        #-> read: &EOI write: &EOI toState: error tape: RIGHT
+        #-> read: {~Input:SYM} write: {Write:SYM} toState: guest_state_{State:SYM}_get_input tape: {!Shift}
+        #-> read: * write: * toState: guest_return_{~Input:SYM}_state_{State:SYM}_write_{Write:SYM}_shift_{!Shift}_retur tape: RIGHT
         - if_reads_then_writes:
             - "%%0" : "%%2"
           pattern: *get_input
@@ -279,5 +276,11 @@ Transitions:
           pattern: *current_state_pattern
           params: []
           action: *right
+
+
+
+Special_states:
+    initial: "host_initial"
+    finals: [*guest_final, "error"]
 
 ...
