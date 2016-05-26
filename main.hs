@@ -53,11 +53,12 @@ showResult x currentState input i
     | otherwise = do
         putStrLn $ "Current state: " ++ currentState ++ "  . i: " ++ show i
         print input
-        showResult x newState newInput (newDir i)
+        showResult x newState newInput (if newDir i < 0 then -1 else newDir i)
     where
-        computed = if i <= Seq.length input - 1
-            then compute (transitions x) currentState input i
-            else compute (transitions x) currentState (input Seq.|> ".") i
+        computed
+            | i == -1 = compute (transitions x) currentState ("." Seq.<| input) 0
+            | i <= Seq.length input - 1 = compute (transitions x) currentState input i
+            |otherwise = compute (transitions x) currentState (input Seq.|> ".") i
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
         newDir = case computed of (_, _, op) -> op
@@ -94,5 +95,5 @@ main = do
                 putStr "Test seq: "
                 print mySeq
                 showResult x (initial x) mySeq 0
-            Left y -> do putStrLn y; return ()
+            Left y -> putStrLn y
         return ()
