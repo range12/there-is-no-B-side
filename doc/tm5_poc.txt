@@ -1,5 +1,5 @@
 
-[&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:Write][Sym:ToState][!TapeAction][&TRANS]....>
+[&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:ToState][Sym:Write][!TapeAction][&TRANS]....>
 >(More Transitions)...[&INIT][Sym:InitialState][&INPUT]...(Symbols:Input)...[&EOI]
 
 
