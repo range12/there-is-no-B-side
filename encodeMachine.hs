@@ -11,7 +11,7 @@ import qualified Data.Map.Strict as Map
 encodeTransitions :: Map.Map String [Transition] -> String
 encodeTransitions = Map.foldrWithKey encodeTransLst  "" where
     encodeTransLst state ts acc =
-        foldr (\x y -> y ++ "&TRANS" ++ state ++ read x ++ write x ++ to_state x) acc ts
+        foldr (\x y -> y ++ "&TRANS" ++ state ++ read x ++ to_state x ++ write x) acc ts
 
 encodeMachine :: Machine -> String -> String
 encodeMachine m input =
