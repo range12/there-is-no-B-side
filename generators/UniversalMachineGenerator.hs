@@ -1,23 +1,26 @@
 import System.Environment
 import System.IO
-import Control.Monad.Reader
+import qualified Data.ByteString.Lazy as B
+import Data.Yaml
 
-module Main where
+-- module Main where
 
 newtype Opts = Opts {
     hasAlphabet :: [String]
 } deriving Show
 
-skellFile = "machines/tm5_skel.yml"
+skellFile = "tm5_skel.yml"
 
-defaultAlphabet = ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0'.. '9']
+defaultAlphabet = (:[]) <$> ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0'.. '9']
 
+makeReciprocal :: Functor f => f String -> f String
 makeReciprocal = fmap ('~':)
 
-getOpts :: Bool -> [String] -> IO Opts
-getOpts [] = []
-getOpts hasOpt (l:ls) = 
+-- getOpts :: Bool -> [String] -> IO Opts
+-- getOpts [] = []
+-- getOpts hasOpt (l:ls) = 
 
 main = do
-    args <- getArgs >>= getOpts False
-    let opts = 
+   dump <- B.readFile skellFile
+   let eitherTm5 = parseEither ? dump
+   B.putStrLn dump
