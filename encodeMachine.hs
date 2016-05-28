@@ -7,17 +7,26 @@ import System.Environment(getArgs)
 import Prelude hiding (read)
 import qualified Data.Map.Strict as Map
 
+
 getMove :: Transition -> String
 getMove t
-    | tAction == "RIGHT" = "\\!RSH"
-    | otherwise          = "\\!LSH"
+    | tAction == "RIGHT" = "!RSH"
+    | otherwise          = "!LSH"
     where
         tAction = action t
 
+
+-- Escape the ! mark because the shell wants to run something when it sees it
+esc :: String -> String
+esc s
+    | head s == '!' = "\\" ++ s
+    | otherwise     = s
+
 encodeTransitions :: Map.Map String [Transition] -> String
-encodeTransitions = Map.foldrWithKey encodeTransLst  "" where
-    encodeTransLst state ts acc =
-        foldr (\x y -> y ++ "&TRANS" ++ state ++ read x ++ to_state x ++ write x ++ getMove x) acc ts
+encodeTransitions =
+    let encodeTransLst state ts acc = foldr (\x y -> y ++ "&TRANS" ++ esc state ++ esc (read x)
+            ++ esc (to_state x) ++ esc (write x) ++ esc (getMove x)) acc ts
+    in Map.foldrWithKey encodeTransLst ""
 
 encodeMachine :: Machine -> String -> String
 encodeMachine m input =

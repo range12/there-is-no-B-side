@@ -78,6 +78,32 @@
       { "read" : "!RSH_HALT", "to_state": "guest_state_A_read_1_rewind", "write": "!RSH_HALT", "action": "LEFT" },
       { "read" : "!HALT", "to_state": "guest_state_A_read_1_rewind", "write": "!HALT", "action": "LEFT" }
     ],
+    "guest_state_A_read_=_rewind" : [
+      { "read" : "&TAPE_START", "to_state" : "guest_state_A_read_=_find_trans", "write" : "&TAPE_START", "action" : "RIGHT" },
+      { "read": "1", "to_state": "guest_state_A_read_=_rewind" , "write": "1", "action": "LEFT" },
+      { "read": ".", "to_state": "guest_state_A_read_=_rewind" , "write": ".", "action": "LEFT" },
+      { "read": "=", "to_state": "guest_state_A_read_=_rewind" , "write": "=", "action": "LEFT" },
+      { "read": "+", "to_state": "guest_state_A_read_=_rewind" , "write": "=", "action": "LEFT" },
+      { "read": "A", "to_state": "guest_state_A_read_=_rewind" , "write": "A", "action": "LEFT" },
+      { "read": "B", "to_state": "guest_state_A_read_=_rewind" , "write": "B", "action": "LEFT" },
+      { "read" : "~1", "to_state": "guest_state_A_read_=_rewind", "write": "~1", "action": "LEFT" },
+      { "read" : "~+", "to_state": "guest_state_A_read_=_rewind", "write": "~+", "action": "LEFT" },
+      { "read" : "~=", "to_state": "guest_state_A_read_=_rewind", "write": "~=", "action": "LEFT" },
+      { "read" : "~.", "to_state": "guest_state_A_read_=_rewind", "write": "~.", "action": "LEFT" },
+      { "read" : "HALT", "to_state": "guest_state_A_read_=_rewind", "write": "HALT", "action": "LEFT" },
+      { "read" : "&TAPE_START", "to_state": "guest_state_A_read_=_rewind", "write": "&TAPE_START", "action": "LEFT" },
+      { "read" : "&BLANK", "to_state": "guest_state_A_read_=_rewind", "write": "&BLANK", "action": "LEFT" },
+      { "read" : "&TRANS", "to_state": "guest_state_A_read_=_rewind", "write": "&TRANS", "action": "LEFT" },
+      { "read" : "&INIT", "to_state": "guest_state_A_read_=_rewind", "write": "&INIT", "action": "LEFT" },
+      { "read" : "&INPUT", "to_state": "guest_state_A_read_=_rewind", "write": "&INPUT", "action": "LEFT" },
+      { "read" : "&EOI", "to_state": "guest_state_A_read_=_rewind", "write": "&EOI", "action": "LEFT" },
+      { "read" : "!LSH", "to_state": "guest_state_A_read_=_rewind", "write": "!LSH", "action": "LEFT" },
+      { "read" : "!RSH", "to_state": "guest_state_A_read_=_rewind", "write": "!RSH", "action": "LEFT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_state_A_read_=_rewind", "write": "!LSH_HALT", "action": "LEFT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_state_A_read_=_rewind", "write": "!RSH_HALT", "action": "LEFT" },
+      { "read" : "!HALT", "to_state": "guest_state_A_read_=_rewind", "write": "!HALT", "action": "LEFT" }
+    ],
+
     "guest_state_A_read_1_find_trans" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -94,6 +120,23 @@
       { "read" : "!HALT", "to_state": "guest_state_A_read_1_find_trans", "write": "!HALT", "action": "RIGHT" },
       { "read" : "HALT", "to_state": "guest_state_A_read_1_find_trans", "write": "HALT", "action": "RIGHT" }
     ],
+    "guest_state_A_read_=_find_trans" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "guest_state_A_read_=_check_trans_state", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "guest_state_A_read_=_find_trans", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "1", "to_state": "guest_state_A_read_=_find_trans", "write": "1", "action": "RIGHT" },
+      { "read" : "+", "to_state": "guest_state_A_read_=_find_trans", "write": "+", "action": "RIGHT" },
+      { "read" : ".", "to_state": "guest_state_A_read_=_find_trans", "write": ".", "action": "RIGHT" },
+      { "read" : "=", "to_state": "guest_state_A_read_=_find_trans", "write": "=", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_state_A_read_=_find_trans", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_state_A_read_=_find_trans", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_state_A_read_=_find_trans", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_state_A_read_=_find_trans", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_state_A_read_=_find_trans", "write": "!HALT", "action": "RIGHT" },
+      { "read" : "HALT", "to_state": "guest_state_A_read_=_find_trans", "write": "HALT", "action": "RIGHT" }
+    ],
+
     "guest_state_A_read_1_check_trans_state" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -113,6 +156,26 @@
       { "read" : "A", "to_state": "guest_state_A_read_1_check_trans_input", "write": "A", "action": "RIGHT" },
       { "read" : "B", "to_state": "guest_state_A_read_1_find_trans", "write": "B", "action": "RIGHT" }
     ],
+    "guest_state_A_read_=_check_trans_state" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "error", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "error", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "error", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "error", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "error", "write": "!HALT", "action": "RIGHT" },
+      { "read" : "A", "to_state": "guest_state_A_read_=_check_trans_input", "write": "A", "action": "RIGHT" },
+      { "read" : "B", "to_state": "guest_state_A_read_=_find_trans", "write": "B", "action": "RIGHT" }
+    ],
+
     "guest_state_A_read_1_check_trans_input" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -134,6 +197,28 @@
       { "read" : "=", "to_state": "guest_state_A_read_1_find_trans", "write": "=", "action": "RIGHT" },
       { "read" : ".", "to_state": "guest_state_A_read_1_find_trans", "write": ".", "action": "RIGHT" }
     ],
+    "guest_state_A_read_=_check_trans_input" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "error", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "error", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "error", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "error", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "error", "write": "!HALT", "action": "RIGHT" },
+      { "read" : "=", "to_state": "guest_return_~=_to_state", "write": "=", "action": "RIGHT" },
+      { "read" : "+", "to_state": "guest_state_A_read_=_find_trans", "write": "+", "action": "RIGHT" },
+      { "read" : "1", "to_state": "guest_state_A_read_=_find_trans", "write": "=", "action": "RIGHT" },
+      { "read" : ".", "to_state": "guest_state_A_read_=_find_trans", "write": ".", "action": "RIGHT" }
+    ],
+
     "guest_return_~1_to_state" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -153,6 +238,26 @@
       { "read" : "A", "to_state": "guest_return_~1_state_A_get_output", "write": "A", "action": "RIGHT" },
       { "read" : "B", "to_state": "guest_return_~1_state_B_get_output", "write": "B", "action": "RIGHT" }
     ],
+    "guest_return_~=_to_state" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "error", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "error", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "error", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "error", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "error", "write": "!HALT", "action": "RIGHT" },
+      { "read" : "A", "to_state": "guest_return_~=_state_A_get_output", "write": "A", "action": "RIGHT" },
+      { "read" : "B", "to_state": "guest_return_~=_state_B_get_output", "write": "B", "action": "RIGHT" }
+    ],
+
     "guest_return_~1_state_A_get_output" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -174,6 +279,28 @@
       { "read" : ".", "to_state": "guest_return_~1_state_A_write_._get_shift", "write": ".", "action": "RIGHT" },
       { "read" : "=", "to_state": "guest_return_~1_state_A_write_=_get_shift", "write": "=", "action": "RIGHT" }
     ],
+    "guest_return_~=_state_A_get_output" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "error", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "error", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "error", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "error", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "error", "write": "!HALT", "action": "RIGHT" },
+      { "read" : "1", "to_state": "guest_return_~=_state_A_write_1_get_shift", "write": "1", "action": "RIGHT" },
+      { "read" : "+", "to_state": "guest_return_~=_state_A_write_+_get_shift", "write": "+", "action": "RIGHT" },
+      { "read" : ".", "to_state": "guest_return_~=_state_A_write_._get_shift", "write": ".", "action": "RIGHT" },
+      { "read" : "=", "to_state": "guest_return_~=_state_A_write_=_get_shift", "write": "=", "action": "RIGHT" }
+    ],
+
     "guest_return_~1_state_A_write_1_get_shift" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
@@ -191,6 +318,41 @@
       { "read" : "!LSH_HALT", "to_state": "guest_return_~1_state_A_write_1_shift_!LSH_HALT_return", "write": "!LSH_HALT", "action": "RIGHT" },
       { "read" : "!HALT", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return", "write": "!HALT", "action": "RIGHT" }
     ],
+    "guest_return_~1_state_A_write_=_get_shift" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_return_~1_state_A_write_=_shift_!RSH_return", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_return_~1_state_A_write_=_shift_!LSH_return", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_return_~1_state_A_write_=_shift_!RSH_HALT_return", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_return_~1_state_A_write_=_shift_!LSH_HALT_return", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_return_~1_state_A_write_=_shift_!HALT_return", "write": "!HALT", "action": "RIGHT" }
+    ],
+    "guest_return_~=_state_A_write_1_get_shift" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "error", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "error", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "error", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "error", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "error", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "error", "write": "~1", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "error", "write": "~+", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "error", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "error", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_return_~=_state_A_write_1_shift_!LSH_return", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_HALT_return", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!LSH_HALT_return", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "!HALT", "action": "RIGHT" }
+    ],
+
     "guest_return_~1_state_A_write_1_shift_!RSH_return" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "~1", "to_state": "guest_state_A_get_input", "write": "1", "action": "RIGHT" },
@@ -210,10 +372,34 @@
       { "read": "1", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "1", "action": "RIGHT" },
       { "read": ".", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": ".", "action": "RIGHT" },
       { "read": "=", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "=", "action": "RIGHT" },
-      { "read": "+", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "=", "action": "RIGHT" },
+      { "read": "+", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "+", "action": "RIGHT" },
       { "read": "A", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "A", "action": "RIGHT" },
       { "read": "B", "to_state": "guest_return_~1_state_A_write_1_shift_!RSH_return" , "write": "B", "action": "RIGHT" }
     ],
+    "guest_return_~=_state_A_write_1_shift_!RSH_return" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "guest_state_A_get_input", "write": "=", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "~+", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "~1", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return", "write": "!HALT", "action": "RIGHT" },
+      { "read": "1", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": "1", "action": "RIGHT" },
+      { "read": ".", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": ".", "action": "RIGHT" },
+      { "read": "=", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": "=", "action": "RIGHT" },
+      { "read": "+", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": "+", "action": "RIGHT" },
+      { "read": "A", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": "A", "action": "RIGHT" },
+      { "read": "B", "to_state": "guest_return_~=_state_A_write_1_shift_!RSH_return" , "write": "B", "action": "RIGHT" }
+    ],
+
     "guest_return_~1_state_A_write_1_shift_!HALT_return" : [
       { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
       { "read" : "~1", "to_state": "guest_state_A_halt", "write": "1", "action": "RIGHT" },
@@ -233,9 +419,32 @@
       { "read": "1", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "1", "action": "RIGHT" },
       { "read": ".", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": ".", "action": "RIGHT" },
       { "read": "=", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "=", "action": "RIGHT" },
-      { "read": "+", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "=", "action": "RIGHT" },
+      { "read": "+", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "+", "action": "RIGHT" },
       { "read": "A", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "A", "action": "RIGHT" },
       { "read": "B", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return" , "write": "B", "action": "RIGHT" }
+    ],
+    "guest_return_~=_state_A_write_1_shift_!HALT_return" : [
+      { "read" : "&EOI", "to_state": "error", "write": "&EOI", "action": "RIGHT" },
+      { "read" : "~=", "to_state": "guest_state_A_halt", "write": "=", "action": "RIGHT" },
+      { "read" : "&INPUT", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "&INPUT", "action": "RIGHT" },
+      { "read" : "&TRANS", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "&TRANS", "action": "RIGHT" },
+      { "read" : "&BLANK", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "&BLANK", "action": "RIGHT" },
+      { "read" : "&INIT", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "&INIT", "action": "RIGHT" },
+      { "read" : "&TAPE_START", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "&TAPE_START", "action": "RIGHT" },
+      { "read" : "~+", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "~+", "action": "RIGHT" },
+      { "read" : "~1", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "~=", "action": "RIGHT" },
+      { "read" : "~.", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "~.", "action": "RIGHT" },
+      { "read" : "!RSH", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "!RSH", "action": "RIGHT" },
+      { "read" : "!LSH", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "!LSH", "action": "RIGHT" },
+      { "read" : "!RSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "!RSH_HALT", "action": "RIGHT" },
+      { "read" : "!LSH_HALT", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return", "write": "!LSH_HALT", "action": "RIGHT" },
+      { "read" : "!HALT", "to_state": "guest_return_~1_state_A_write_1_shift_!HALT_return", "write": "!HALT", "action": "RIGHT" },
+      { "read": "1", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": "1", "action": "RIGHT" },
+      { "read": ".", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": ".", "action": "RIGHT" },
+      { "read": "=", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": "=", "action": "RIGHT" },
+      { "read": "+", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": "+", "action": "RIGHT" },
+      { "read": "A", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": "A", "action": "RIGHT" },
+      { "read": "B", "to_state": "guest_return_~=_state_A_write_1_shift_!HALT_return" , "write": "B", "action": "RIGHT" }
     ]
   }
 }

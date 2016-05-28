@@ -46,8 +46,8 @@ compute tsMap state input i = computeHelper goodTrans input dir i where
         Just y -> if action y == "RIGHT" then (+) 1 else (\x -> x - 1)
         Nothing -> (-) 99999999
 
-putInput :: Seq.Seq String -> Int -> IO ()
-putInput input current = let
+putTape :: Seq.Seq String -> Int -> IO ()
+putTape input current = let
     symbolsIOs = Seq.foldrWithIndex putSymbol [] input where
         putSymbol i sym result
             | i == current && i == Seq.length input  - 1 =  putStr  ("<" ++ sym ++ ">") : result
@@ -61,7 +61,7 @@ showResult x currentState input i
     | currentState `elem` finals x = do putStrLn "The END"; print input
     | otherwise = do
         putStrLn $ "Current state: " ++ currentState ++ ".   Index: " ++ show i
-        putInput input i
+        putTape input i
         putStrLn ""
         showResult x newState newInput (if newDir i < 0 then -1 else newDir i)
     where
