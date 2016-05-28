@@ -1,9 +1,10 @@
+module Main where
+
 import System.Environment
 import System.IO
 import qualified Data.ByteString.Lazy as B
 import Data.Yaml
-
--- module Main where
+import TM5Parser
 
 newtype Opts = Opts {
     hasAlphabet :: [String]
@@ -21,6 +22,8 @@ makeReciprocal = fmap ('~':)
 -- getOpts hasOpt (l:ls) = 
 
 main = do
-   dump <- B.readFile skellFile
-   let eitherTm5 = parseEither ? dump
-   B.putStrLn dump
+    dump <- B.readFile skellFile
+    let eitherTm5 = decodeEither dump :: Either String TM5Doc
+    case eitherTm5 of
+        Left s -> putStrLn s
+        Right doc -> print doc

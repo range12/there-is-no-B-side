@@ -1,22 +1,24 @@
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 
-import Data.Yaml
+module TM5Parser where
+
 import GHC.Generics
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.Yaml
+import Data.Aeson
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as M
 import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as HM
-import Control.Monad (join)
+import Control.Monad
+import Control.Applicative
 
-module TM5Parser where
-
-newtype AlphabetDoc = ADoc {
+data AlphabetDoc = ADoc {
     hostBlank :: Text
     , hostTags :: [Text]
     , globHostTags :: Text
-    , tapeActions :: [Text]
+    , tapeActSyms :: [Text]
     , globTapeActions :: Text
     , freeSymbols :: [Text]
     , globFreeSymbols :: Text
@@ -26,41 +28,27 @@ newtype AlphabetDoc = ADoc {
     , collection :: [Text]
 } deriving (Show, Generic)
 
-newtype GenTemplates = GenTp {
+data GenTemplates = GenTp {
     readPat :: Text
     , inheritedNth :: Text
     , reciprocal :: Text
     , currentState :: Text
 } deriving (Show, Generic)
 
-newtype M5Transition = M5Trans {
+data M5Transition = M5Trans {
     inputOuput :: [(Text, Text)]
     , toStatePattern :: Text
     , toStateParams :: [Text]
     , tapeAction :: Text
 } deriving (Show, Generic)
 
-newtype TM5Doc = TM5Doc {
+data TM5Doc = TM5Doc {
     alphabet :: AlphabetDoc
     , tapeActions :: (Text, Text)
     , templatePatterns :: GenTemplates
     , transitions :: Map Text M5Transition
     , finalStates :: [Text]
 } deriving (Show, Generic)
-
---data AlphabetDoc = ADoc {
---    hostBlank :: Text
---    , hostTags :: [Text]
---    , globHostTags :: Text
---    , tapeActions :: [Text]
---    , globTapeActions :: Text
---    , freeSymbols :: [Text]
---    , globFreeSymbols :: Text
---    , freeSymbolsRCP :: [Text]
---    , globFreeSymbolsRCP :: Text
---    , globAnyInput :: Text
---    , collection :: [Text]
---} deriving (Show, Generic)
 
 valueToText :: Value -> Parser Text
 valueToText = withText "Text" return
@@ -76,12 +64,12 @@ instance FromJSON AlphabetDoc where
         <*> o .: "Glob_guest_free_symbols"
         <*> o .: "Reciprocal_to_free_symbols"
         <*> o .: "Glob_any"
-        <*> (o .: "Collection") >>= withArray "Heterogenous array" (\a ->
-                (`mapM` (V.toList a)) \v -> case v of Array a -> mapM valueToText (V.toList a)
-                                                      v -> [] <$> valueToText v
-                                >>= liftM join lt
+        <*> (o .: "Collection") >>= withArray "Heterogeneous array" $ \a ->
+                (`mapM` (V.toList a)) $ \v -> case v of Array a -> mapM valueToText (V.toList a)
+                                                        v -> [] <$> valueToText v
+                                >>= liftM join
     
-    parseJSON _ = mzero
+    parseJSON _ = error "Failed to parse AlphabetDoc"
 
 
 instance FromJSON M5Transition where
@@ -92,16 +80,35 @@ instance FromJSON M5Transition where
         <*> o .: "action"
         where
             parsePairs :: Value -> Parser [(Text,Text)]
-            parsePairs = withArray "Text:Text pairs" \a -> mapM (\h -> return (HM.toList h)) a
+            parsePairs = withArray "Text:Text pairs" $ \a ->
+                (`mapM` (V.toList a)) $ withObject "Text:Text pairs" $ \h ->
+                    (`mapM` ((unzip . HM.toList) h)) $ \(l, r) ->
+                        liftM2 zip (return l) (mapM valueToText r)
 
-    parseJSON _ = mzero
+    parseJSON _ = error "Failed to parse M5Transition"
         
 
 
 instance FromJSON TM5Doc where
-    parseJSON _ = mzero
+    parseJSON (Object o) = TM5Doc
+        <$> o .: "Alphabet" 
+        <*> (o .: "Actions") >>= seqOfTwo
+        <*> o .: "Patterns"
+        <*> o .: "Transitions"
+        <*> (o .: "Special_states" .: "finals")
+            where
+                seqOfTwo = withArray "Sequence of 2" $ \a ->
+                    case length a == 2 of   False -> mzero
+                                            _ -> mapM valueToText (V.toList a)
+                                        
 
+    parseJSON _ = error "Failed to parse TM5Doc"
 
-instance ToJSON TM5Doc
-instance ToJSON AlphabetDoc
-instance ToJSON M5Transition
+instance FromJSON GenTemplates where
+    parseJSON (Object o) = GenTp
+        <$> o .: "Repeat_read"
+        <*> o .: "Inherited_nth"
+        <*> o .: "Symbol_reciprocal"
+        <*> o .: "Repeat_current_state_pattern"
+
+    parseJSON _ = error "Failed to parse GenTemplates"

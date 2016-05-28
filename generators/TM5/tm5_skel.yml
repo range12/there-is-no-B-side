@@ -1,7 +1,6 @@
 ---
-Format_input_model: >
-    [&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:ToState][Sym:ToWrite][!TapeAction][&TRANS]....>
-    >(More Transitions)...[&INIT][Sym:InitialState][&INPUT]...(Symbols:Input)...[&EOI]
+Format_input_model: |
+    [&TAPE_START][&TRANS][Sym:FromState][Sym:Read][Sym:ToState][Sym:ToWrite][!TapeAction][&TRANS]...(More Transitions)...[&INIT][Sym:InitialState][&INPUT]...(Symbols:Input)...[&EOI]
 
 Alphabet:
     Host_blank: &host_blank "&BLANK"
