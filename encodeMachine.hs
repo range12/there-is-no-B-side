@@ -7,11 +7,17 @@ import System.Environment(getArgs)
 import Prelude hiding (read)
 import qualified Data.Map.Strict as Map
 
+getMove :: Transition -> String
+getMove t
+    | tAction == "RIGHT" = "\\!RSH"
+    | otherwise          = "\\!LSH"
+    where
+        tAction = action t
 
 encodeTransitions :: Map.Map String [Transition] -> String
 encodeTransitions = Map.foldrWithKey encodeTransLst  "" where
     encodeTransLst state ts acc =
-        foldr (\x y -> y ++ "&TRANS" ++ state ++ read x ++ to_state x ++ write x) acc ts
+        foldr (\x y -> y ++ "&TRANS" ++ state ++ read x ++ to_state x ++ write x ++ getMove x) acc ts
 
 encodeMachine :: Machine -> String -> String
 encodeMachine m input =

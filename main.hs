@@ -56,9 +56,9 @@ showResult x currentState input i
         showResult x newState newInput (if newDir i < 0 then -1 else newDir i)
     where
         computed
-            | i == -1 = compute (transitions x) currentState ("." Seq.<| input) 0
+            | i == -1 = compute (transitions x) currentState (blank x Seq.<| input) 0
             | i <= Seq.length input - 1 = compute (transitions x) currentState input i
-            |otherwise = compute (transitions x) currentState (input Seq.|> ".") i
+            |otherwise = compute (transitions x) currentState (input Seq.|> blank x) i
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
         newDir = case computed of (_, _, op) -> op
