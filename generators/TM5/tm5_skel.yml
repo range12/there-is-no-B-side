@@ -54,7 +54,6 @@ Transitions:
     ? &get_shift_return "guest_return_%%_state_%%_write_%%_get_shift"
     ? &return_halt "guest_return_%%_state_%%_write_%%_shift_%%_halt"
     ? &return_get_input "guest_return_%%_state_%%_write_%%_shift_%%_return"
-    ? &guest_final "final_%%" : []
     # -------------------------------------------------------------------------
 
     host_initial:
@@ -86,7 +85,7 @@ Transitions:
              - "SYM*": *host_blank
           pattern: *get_input
           params: [*read_pattern]
-          tape_action: *right
+          action: *right
 
 
     *get_input:
@@ -279,6 +278,6 @@ Transitions:
 
 Special_states:
     initial: "host_initial"
-    finals: [*guest_final, "error"]
+    finals: ["final_%%", "error"]
 
 ...
