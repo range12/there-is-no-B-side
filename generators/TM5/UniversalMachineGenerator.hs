@@ -25,5 +25,5 @@ main = do
     dump <- B.readFile skellFile
     let eitherTm5 = decodeEither dump :: Either String TM5Doc
     case eitherTm5 of
-        Left s -> putStrLn s
+        Left err -> putStrLn err
         Right doc -> print doc

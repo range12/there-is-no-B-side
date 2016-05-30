@@ -8,6 +8,7 @@ import Data.Text.Lazy as L
 import Data.ByteString.Lazy as B
 import qualified Data.Map.Strict as Map
 import Control.Monad(mzero)
+import Control.Applicative ((<$>),(<*>))
 import Prelude hiding (read)
 
 string2ByteString :: String -> B.ByteString

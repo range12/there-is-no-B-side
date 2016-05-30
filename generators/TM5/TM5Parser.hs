@@ -5,6 +5,7 @@ module TM5Parser where
 import GHC.Generics
 import Data.Yaml
 import Data.Aeson
+import Data.Aeson.Types
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Map.Lazy (Map)
@@ -53,6 +54,9 @@ data TM5Doc = TM5Doc {
 valueToText :: Value -> Parser Text
 valueToText = withText "Text" return
 
+arrayOfText :: Array -> Parser [Text]
+arrayOfText a = mapM valueToText (V.toList a)
+
 instance FromJSON AlphabetDoc where
     parseJSON (Object o) = ADoc
         <$> o .: "Host_blank"
@@ -64,10 +68,17 @@ instance FromJSON AlphabetDoc where
         <*> o .: "Glob_guest_free_symbols"
         <*> o .: "Reciprocal_to_free_symbols"
         <*> o .: "Glob_any"
-        <*> (o .: "Collection") >>= withArray "Heterogeneous array" $ \a ->
-                (`mapM` (V.toList a)) $ \v -> case v of Array a -> mapM valueToText (V.toList a)
-                                                        v -> [] <$> valueToText v
-                                >>= liftM join
+        <*> o .: "Glob_reciprocal_to_free_symbols"
+        <*> ((o .: "Collection") >>= parseCollection)
+        where
+            parseCollection :: Value -> Parser [Text]
+            parseCollection = withArray "array" $
+                \a -> liftM concat (mapM flattenAry (V.toList a))
+            flattenAry  :: Value -> Parser [Text]
+            flattenAry (Array a) = arrayOfText a
+            flattenAry (String t) = return [t]
+            flattenAry w = typeMismatch "flattenAry:" w
+ 
     
     parseJSON _ = error "Failed to parse AlphabetDoc"
 
