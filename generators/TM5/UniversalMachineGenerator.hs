@@ -2,12 +2,15 @@ module Main where
 
 import System.Environment
 import System.IO
+import System.Exit
 import qualified Data.ByteString as B
 import Control.Applicative
-import Data.Yaml
+import qualified Data.Yaml as Y
 import GenTM5Parser
 import Control.Monad.Reader
 import qualified Data.Text as T
+
+import Control.Lens
 
 import Data.IORef
 import System.IO.Unsafe
@@ -21,29 +24,28 @@ getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
 
 skellFile = "tm5_skel.yml"
 
-defaultAlphabet = (:[]) <$> ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0'.. '9']
+defaultAlphabet = fmap T.pack $ (:[]) <$> ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0'.. '9']
 
-makeReciprocal :: Functor f => f String -> f String
-makeReciprocal = fmap ('~':)
+makeReciprocal :: [T.Text] -> [T.Text]
+makeReciprocal = fmap (T.cons '~')
 
 constructDoc :: Reader TM5Doc TM5Doc
 constructDoc = do
-    doc@(TM5Doc alpha ta tp tr fs) <- ask
-    if null $ freeSymbols alpha then do
-        let (ADoc hb ht ght ts gts _ gfs rfs grfs ga v) = alpha
-        let frSym = T.pack <$> defaultAlphabet
-        let rFrSym = fmap T.pack $ makeReciprocal defaultAlphabet
-            in let nuAl = ADoc hb ht ght ts gts frSym gfs rFrSym grfs ga (v ++ frSym)
-                in return (TM5Doc nuAl ta tp tr fs)
+    let getAlpha = view freeSymbols . view alphabet
+    alpha <- asks getAlpha
+    if null alpha then
+        let setAlpha = over alphabet . set freeSymbols
+            in local (setAlpha defaultAlphabet) constructDoc
     else do
-        return doc
-
+        let setRcp = over alphabet . set freeSymbolsRCP
+        let rcp = makeReciprocal alpha
+        ask >>= return . (setRcp rcp)
 
 
 main = do
     dump <- B.readFile skellFile
-    let eitherTm5 = decodeEither dump :: Either String TM5Doc
+    let eitherTm5 = Y.decodeEither dump :: Either String TM5Doc
     case eitherTm5 of
-        Left err -> putStrLn err
+        Left err -> putStrLn err >> exitFailure
         Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
-        >> print getDoc
+       >> print getDoc

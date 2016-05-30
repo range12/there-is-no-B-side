@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module GenTM5Parser where
 
@@ -14,19 +16,23 @@ import qualified Data.HashMap.Strict as HM
 import Control.Monad
 import Control.Applicative
 
+import Control.Lens
+
 data AlphabetDoc = ADoc {
-    hostBlank :: Text
-    , hostTags :: [Text]
-    , globHostTags :: Text
-    , tapeActSyms :: [Text]
-    , globTapeActions :: Text
-    , freeSymbols :: [Text]
-    , globFreeSymbols :: Text
-    , freeSymbolsRCP :: [Text]
-    , globFreeSymbolsRCP :: Text
-    , globAnyInput :: Text
-    , collection :: [Text]
+    _hostBlank :: Text
+    , _hostTags :: [Text]
+    , _globHostTags :: Text
+    , _tapeActSyms :: [Text]
+    , _globTapeActions :: Text
+    , _freeSymbols :: [Text]
+    , _globFreeSymbols :: Text
+    , _freeSymbolsRCP :: [Text]
+    , _globFreeSymbolsRCP :: Text
+    , _globAnyInput :: Text
+    , _collection :: [Text]
 } deriving (Show, Generic)
+
+$(makeLenses ''AlphabetDoc)
 
 data GenTemplates = GenTp {
     readPat :: Text
@@ -43,12 +49,14 @@ data M5Transition = M5Trans {
 } deriving (Show, Generic)
 
 data TM5Doc = TM5Doc {
-    alphabet :: AlphabetDoc
-    , tapeActions :: (Text, Text)
-    , templatePatterns :: GenTemplates
-    , transitions :: HashMap Text [M5Transition]
-    , finalStates :: [Text]
+    _alphabet :: AlphabetDoc
+    , _tapeActions :: (Text, Text)
+    , _templatePatterns :: GenTemplates
+    , _transitions :: HashMap Text [M5Transition]
+    , _finalStates :: [Text]
 } deriving (Show, Generic)
+
+$(makeLenses ''TM5Doc)
 
 valueToText :: Value -> Parser Text
 valueToText = withText "Text" return
