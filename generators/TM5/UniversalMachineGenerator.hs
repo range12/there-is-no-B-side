@@ -2,7 +2,8 @@ module Main where
 
 import System.Environment
 import System.IO
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as B
+import Control.Applicative
 import Data.Yaml
 import TM5Parser
 

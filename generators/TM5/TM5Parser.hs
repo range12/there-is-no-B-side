@@ -8,9 +8,8 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Map.Lazy (Map)
-import qualified Data.Map.Lazy as M
 import qualified Data.Vector as V
+import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad
 import Control.Applicative
@@ -47,7 +46,7 @@ data TM5Doc = TM5Doc {
     alphabet :: AlphabetDoc
     , tapeActions :: (Text, Text)
     , templatePatterns :: GenTemplates
-    , transitions :: Map Text M5Transition
+    , transitions :: HashMap Text [M5Transition]
     , finalStates :: [Text]
 } deriving (Show, Generic)
 
@@ -80,7 +79,7 @@ instance FromJSON AlphabetDoc where
             flattenAry w = typeMismatch "flattenAry:" w
  
     
-    parseJSON _ = error "Failed to parse AlphabetDoc"
+    parseJSON w = typeMismatch "!object representing AlphabetDoc!" w
 
 
 instance FromJSON M5Transition where
@@ -92,28 +91,29 @@ instance FromJSON M5Transition where
         where
             parsePairs :: Value -> Parser [(Text,Text)]
             parsePairs = withArray "Text:Text pairs" $ \a ->
-                (`mapM` (V.toList a)) $ withObject "Text:Text pairs" $ \h ->
-                    (`mapM` ((unzip . HM.toList) h)) $ \(l, r) ->
-                        liftM2 zip (return l) (mapM valueToText r)
+                (`mapM` V.toList a) $ withObject "Text:Text" $ \h ->
+                    head $ (<$> HM.toList h) $ \(l, r) ->
+                        liftM2 (,) (return l) (valueToText r)
 
-    parseJSON _ = error "Failed to parse M5Transition"
+    parseJSON w = typeMismatch "!object representing M5Transition!" w
         
-
 
 instance FromJSON TM5Doc where
     parseJSON (Object o) = TM5Doc
         <$> o .: "Alphabet" 
-        <*> (o .: "Actions") >>= seqOfTwo
+        <*> (o .: "Actions" >>= seqOfTwo)
         <*> o .: "Patterns"
         <*> o .: "Transitions"
-        <*> (o .: "Special_states" .: "finals")
+        <*> ((o .: "Special_states") >>= (.: "finals"))
             where
                 seqOfTwo = withArray "Sequence of 2" $ \a ->
-                    case length a == 2 of   False -> mzero
-                                            _ -> mapM valueToText (V.toList a)
+                    if V.length a /= 2
+                        then mzero
+                        else liftM2 (,) (valueToText$ a V.! 0) (valueToText$ a V.! 1)
                                         
 
-    parseJSON _ = error "Failed to parse TM5Doc"
+    parseJSON w = typeMismatch "!object representing TM5Doc!" w
+
 
 instance FromJSON GenTemplates where
     parseJSON (Object o) = GenTp
@@ -122,4 +122,4 @@ instance FromJSON GenTemplates where
         <*> o .: "Symbol_reciprocal"
         <*> o .: "Repeat_current_state_pattern"
 
-    parseJSON _ = error "Failed to parse GenTemplates"
+    parseJSON w = typeMismatch "!object representing GenTemplates!" w
