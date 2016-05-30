@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 
-module TM5Parser where
+module GenTM5Parser where
 
 import GHC.Generics
 import Data.Yaml

@@ -5,7 +5,16 @@ import System.IO
 import qualified Data.ByteString as B
 import Control.Applicative
 import Data.Yaml
-import TM5Parser
+import GenTM5Parser
+
+import Data.IORef
+import System.IO.Unsafe
+
+refTM5Doc :: IORef TM5Doc
+refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
+
+getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
+
 
 newtype Opts = Opts {
     hasAlphabet :: [String]
@@ -27,4 +36,4 @@ main = do
     let eitherTm5 = decodeEither dump :: Either String TM5Doc
     case eitherTm5 of
         Left err -> putStrLn err
-        Right doc -> print doc
+        Right doc -> writeIORef refTM5Doc doc >> print getDoc

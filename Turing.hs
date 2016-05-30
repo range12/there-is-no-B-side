@@ -2,13 +2,12 @@
 module Turing where
 
 import Data.Aeson
+import Data.Aeson.Types
 import GHC.Generics
 import Data.Text.Lazy.Encoding as E
 import Data.Text.Lazy as L
 import Data.ByteString.Lazy as B
 import qualified Data.Map.Strict as Map
-import Control.Monad(mzero)
-import Control.Applicative ((<$>),(<*>))
 import Prelude hiding (read)
 
 string2ByteString :: String -> B.ByteString
@@ -26,12 +25,10 @@ instance FromJSON Transition where
                    <*> v .: "to_state"
                    <*> v .: "write"
                    <*> v .: "action"
-    parseJSON _ = mzero
+    parseJSON w = typeMismatch "!object representing a Transition!" w
 
--- data Transitions =
---     Transistions (Map.Map String [Transition]) deriving (Show, Generic)
---
--- instance FromJSON Transitions
+instance ToJSON Transition
+
 
 data Machine = Machine { name :: String
                        , alphabet :: [String]
@@ -51,4 +48,6 @@ instance FromJSON Machine where
                 <*> v .: "initial"
                 <*> v .: "finals"
                 <*> v .: "transitions"
-    parseJSON _ = mzero
+    parseJSON w = typeMismatch "!object representing a Machine!" w
+
+instance ToJSON Machine
