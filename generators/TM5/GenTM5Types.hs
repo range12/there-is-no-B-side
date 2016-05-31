@@ -32,7 +32,7 @@ data TM5Machine = TM5 {
 
 $(deriveJSON defaultOptions ''TM5Machine)
 
-data TM5ConcreteTrans = M5CTrans {
+data TM5ConcreteTransition = M5CTrans {
     read :: Text
     , to_state :: Text
     , write :: Text
@@ -50,13 +50,34 @@ type SkelInstance = StateInstance
 
 getPlaceHolder = getDoc ^. templatePatterns ^. inheritedNth
 
-makeInstance :: Reader SkelInstance StateInstance
-makeInstance =
+makeState :: Reader SkelInstance StateInstance
+makeState =
     (SI templName params) <- ask
     let bits = T.splitOn getPlaceHolder templName
     case bits of
         [single] -> return (SI single [])
         _ ->  return $ SI (T.concat $ L.transpose $ [bits, params]) params
+
+
+-- The caller manages the symbol collection: for each transition, drop given symbols.
+-- Caller passes its !!specially ordered!! resolved params to prepend on comprehension.
+-- comprehendStates :: PrefixCollection -> LocalSymbolCollection -> TemplateState -> [StateInstance]
+comprehendStates :: SkelInstance -> [Text] -> [StateInstance]
+comprehendStates (SI tName prefixSyms) collection =
+    [makeState $ SI tName (prefixSyms ++ [param]) |  param <- collection]
+
+
+-- ForEach I:O couple
+--  comprehend template I:O couples
+--      instantiate State:
+--      comprehend template States
+--          makeTransition
+
+-- makeTransitionInstance :: StateInstance -> SkelTransition -> ConcreteTransition
+makeTransitions :: Reader (StateInstance, P.M5Transition) (Seq TM5ConcreteTransition)
+
+
+
 
 
 -- ForEach starting state template
@@ -71,11 +92,15 @@ instantiateDoc = do
     let collec = alphaDoc ^. P.collection
     let iniState = doc ^. P.initialState
     let finals = doc ^. P.finalStates
-    let initTM5 =  TM5 "UniversalMachine" collec (alphaDoc ^. P.blank) finals iniState finals HM.empty
+    let initTM5 =  TM5
+        "UniversalMachine"
+        collec
+        (alphaDoc ^. P.blank)
+        finals
+        iniState
+        finals
+        HM.empty
     put initTM5
     gets (HM.toList $ doc ^. P.transitions) >>=
 
 
-instantiateTrans :: Reader [Text] (HashMap Text (Seq TM5ConcreteTrans))
-instantiateTrans = do
-    collec <- ask

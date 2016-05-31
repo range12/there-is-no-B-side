@@ -11,6 +11,8 @@ import Data.Aeson.Types
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Sq
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad
@@ -20,11 +22,6 @@ import Control.Lens
 
 import Data.IORef
 import System.IO.Unsafe
-
-refTM5Doc :: IORef TM5Doc
-refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
-
-getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
 
 data AlphabetDoc = ADoc {
     _hostBlank :: Text
@@ -64,12 +61,18 @@ data TM5Doc = TM5Doc {
     _alphabet :: AlphabetDoc
     , _tapeActions :: (Text, Text)
     , _templatePatterns :: GenTemplates
-    , _transitions :: HashMap Text [M5Transition]
+    , _transitions :: HashMap Text (Seq M5Transition)
     , _intialState :: Text
     , _finalStates :: [Text]
 } deriving (Show, Generic)
 
 $(makeLenses ''TM5Doc)
+
+refTM5Doc :: IORef TM5Doc
+refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
+
+getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
+
 
 valueToText :: Value -> Parser Text
 valueToText = withText "Text" return
