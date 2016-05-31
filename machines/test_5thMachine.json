@@ -2,13 +2,13 @@
   "name" : "test 5",
   "alphabet" : [
     "&TAPE_START", "&BLANK", "&TRANS", "&INIT", "&INPUT", "&EOI",
-    "!LSH", "!RSH", "!LSH_HALT", "!RSH_HALT", "!HALT", "HALT",
+    "!LSH_HALT", "!RSH_HALT", "!LSH", "!RSH", "!HALT", "HALT",
     "1", "+", ".", "=", "~1", "~+", "~.", "~=", "A", "B", "C"
   ],
   "blank" : "&BLANK",
   "states" : [ "host_initial", "guest_init", "guest_state_A_get_input", "guest_state_A_read_1_rewind" ],
   "initial" : "host_initial",
-  "finals" : [ "host_halt", "error" ],
+  "finals" : [ "host_halt", "error", "guest_state_A_halt", "guest_state_B_halt", "guest_state_C_halt"],
 
   "transitions" : {
     "host_initial" : [
