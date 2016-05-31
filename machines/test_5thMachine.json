@@ -2,7 +2,7 @@
   "name" : "test 5",
   "alphabet" : [
     "&TAPE_START", "&BLANK", "&TRANS", "&INIT", "&INPUT", "&EOI",
-    "!LSH_HALT", "!RSH_HALT", "!LSH", "!RSH", "!HALT", "HALT",
+    "!LSH", "!RSH", "!LSH_HALT", "!RSH_HALT", "!HALT", "HALT",
     "1", "+", ".", "=", "~1", "~+", "~.", "~=", "A", "B", "C"
   ],
   "blank" : "&BLANK",

@@ -6,16 +6,22 @@ import System.Environment
 import qualified Data.Aeson as Aeson
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
-import Data.List (find)
+import qualified Data.List as List
 
-
-goodElement :: [String] -> String -> Maybe (String, Int)
-goodElement [] _ = Nothing
-goodElement (x:xs) input
-    | x == take len input = Just (x, len)
-    | otherwise           = goodElement xs input
+legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
+legitElements [] _ tokens = tokens
+legitElements (x:xs) input legitTokens
+    | x == take len input = legitElements xs input $ (x, len) : legitTokens
+    | otherwise           = legitElements xs input legitTokens
     where
         len = length x
+
+goodElement :: [String] -> String -> Maybe (String, Int)
+goodElement symbols input =
+    let legitTokens = legitElements symbols input []
+    in if null legitTokens
+        then Nothing
+        else Just $ List.maximumBy (\ (_, x) (_, y) -> compare x y) legitTokens
 
 genInputSeq :: String -> [String] -> Seq.Seq String -> Seq.Seq String
 genInputSeq "" _ acc          = acc
@@ -41,7 +47,7 @@ compute :: Map.Map String [Transition] -> String -> Seq.Seq String -> Int -> (St
 compute tsMap state input i = computeHelper goodTrans input dir i where
     currentSymbol = Seq.index input i
     ts = tsMap Map.! state
-    goodTrans = find (\x -> Turing.read x == currentSymbol) ts -- returns THE Transition
+    goodTrans = List.find (\x -> Turing.read x == currentSymbol) ts -- returns THE Transition
     dir = case goodTrans of
         Just y -> if action y == "RIGHT" then (+) 1 else (\x -> x - 1)
         Nothing -> (-) 99999999
