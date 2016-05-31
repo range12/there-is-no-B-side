@@ -56,7 +56,7 @@ Transitions:
     ? &return_get_input "guest_return_%%_state_%%_write_%%_shift_%%_return"
     # -------------------------------------------------------------------------
 
-    host_initial:
+    &initial_state host_initial:
           # trans: { read: "&INIT", write: "&BLANK", toState: guest_init, tape: RIGHT }
         - if_reads_then_writes:
              - "&INIT": "&BLANK"
@@ -277,7 +277,7 @@ Transitions:
 
 
 Special_states:
-    initial: "host_initial"
-    finals: ["final_%%", "error"]
+    initial: *initial_state
+    finals: ["error"]
 
 ...

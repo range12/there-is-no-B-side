@@ -15,12 +15,6 @@ import Control.Lens
 import Data.IORef
 import System.IO.Unsafe
 
-refTM5Doc :: IORef TM5Doc
-refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
-
-getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
-
-
 
 skellFile = "tm5_skel.yml"
 
@@ -48,4 +42,5 @@ main = do
     case eitherTm5 of
         Left err -> putStrLn err >> exitFailure
         Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
-       >> print getDoc
+           >> print getDoc
+

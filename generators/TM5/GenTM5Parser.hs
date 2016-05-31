@@ -18,6 +18,14 @@ import Control.Applicative
 
 import Control.Lens
 
+import Data.IORef
+import System.IO.Unsafe
+
+refTM5Doc :: IORef TM5Doc
+refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
+
+getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
+
 data AlphabetDoc = ADoc {
     _hostBlank :: Text
     , _hostTags :: [Text]
@@ -35,24 +43,29 @@ data AlphabetDoc = ADoc {
 $(makeLenses ''AlphabetDoc)
 
 data GenTemplates = GenTp {
-    readPat :: Text
-    , inheritedNth :: Text
-    , reciprocal :: Text
-    , currentState :: Text
+    _readPat :: Text
+    , _inheritedNth :: Text
+    , _reciprocal :: Text
+    , _currentState :: Text
 } deriving (Show, Generic)
 
+$(makeLenses ''GenTemplates)
+
 data M5Transition = M5Trans {
-    inputOuput :: [(Text, Text)]
-    , toStatePattern :: Text
-    , toStateParams :: [Text]
-    , tapeAction :: Text
+    _inputOuput :: [(Text, Text)]
+    , _toStatePattern :: Text
+    , _toStateParams :: [Text]
+    , _tapeAction :: Text
 } deriving (Show, Generic)
+
+$(makeLenses ''M5Transition)
 
 data TM5Doc = TM5Doc {
     _alphabet :: AlphabetDoc
     , _tapeActions :: (Text, Text)
     , _templatePatterns :: GenTemplates
     , _transitions :: HashMap Text [M5Transition]
+    , _intialState :: Text
     , _finalStates :: [Text]
 } deriving (Show, Generic)
 
@@ -74,8 +87,8 @@ instance FromJSON AlphabetDoc where
         <*> o .: "Guest_free_symbols"
         <*> o .: "Glob_guest_free_symbols"
         <*> o .: "Reciprocal_to_free_symbols"
-        <*> o .: "Glob_any"
         <*> o .: "Glob_reciprocal_to_free_symbols"
+        <*> o .: "Glob_any"
         <*> ((o .: "Collection") >>= parseCollection)
         where
             parseCollection :: Value -> Parser [Text]
@@ -112,6 +125,7 @@ instance FromJSON TM5Doc where
         <*> (o .: "Actions" >>= seqOfTwo)
         <*> o .: "Patterns"
         <*> o .: "Transitions"
+        <*> ((o .: "Special_states") >>= (.: "initial"))
         <*> ((o .: "Special_states") >>= (.: "finals"))
             where
                 seqOfTwo = withArray "Sequence of 2" $ \a ->
