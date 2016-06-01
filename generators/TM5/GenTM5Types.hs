@@ -55,8 +55,6 @@ data StateInstance = SI {
     , paramsSI :: [Text]
 } deriving (Show)
 
-type SkelInstance = StateInstance
-
 exitError :: String -> a
 exitError s = unsafeDupablePerformIO $ hPutStrLn stderr s >> exitFailure >> return undefined
 
@@ -72,11 +70,13 @@ getSameAsRead = getDoc ^. P.templatePatterns ^. P.readPat
 getGlobAny = getDoc ^. P.alphabet ^. P.globAnyInput
 getGlobFree = getDoc ^. P.alphabet ^. P.globFreeSymbols
 getFreeSyms = getDoc ^. P.alphabet ^. P.freeSymbols
+getRCPFree = getDoc ^. P.alphabet ^. P.freeSymbolsRCP
 getAllSyms = getDoc ^. P.alphabet ^. P.collection
 
-makeState :: Reader SkelInstance StateInstance
-makeState =
-    (SI templName params) <- ask
+makeState   :: StateInstance -- a template name and a list of concrete template params.
+            -> StateInstance -- the resulting concrete name and list of concrete params.
+makeState skelInstance =
+    let (SI templName params) = skelInstance
     let bits = T.splitOn getPlaceHolder templName
       in case bits of
           [single] -> return (SI single [])
@@ -89,14 +89,20 @@ comprehendStates :: SkelInstance -> [Text] -> [StateInstance]
 comprehendStates sk [] = sk
 comprehendStates (SI tName existingParams) collection =
     let construct = \p -> SI tName (existingParams ++ [p])
-      in runMakeState = makeState . runReader . construct
+      in runMakeState = makeState . construct
         in [runMakeState param | param <- collection]
 
 
+-- Takes a selector
+-- The selector can be either (rcp to Nth sym) "~~%%N" or "%%N" (Nth sym)
+-- Returns the index data borne by the selector,
+--  as either Left iRcp or Right i.
+-- Non-selector or malformed selector will raise a deadly exception
+--  through the use of fromJust.
 indexFromSelector :: Text -> Either Int Int
 indexFromSelector sel =
     let stripRcp = T.stripPrefix getRCPOf sel
-    let doRead = (Pre.Read :: String -> Int)
+    let doRead = (Pre.read :: String -> Int)
         . T.unpack . fromJust
         . (T.stripPrefix getPlaceHolder)
     case stripRcp of
@@ -104,15 +110,17 @@ indexFromSelector sel =
         Nothing -> Right$ doRead sel
 
 -- From state instance params, a selector string: return the targeted parameter.
+-- A malformed selector,
+-- An improper (OOB index) selector,
+-- A bad freeSyms <=> RCP mapping
+--      will raise a deadly exception.
 paramFromSelector :: ([Text], Text) -> Text
-paramFromSelector (params, sel) = params !! fromRight$ indexFromSelector sel
+paramFromSelector (params, sel) = 
+    case indexFromSelector sel of
+        Right i -> params !! i
+        Left i -> let miRcp = elemIndex (params !! i) getFreeSyms
+                    in getRCPFree !! fromJust miRcp
      
-rcpFromSelector :: ([Text], Text) -> Text
-rcpFromSelector (params, sel) =
-    let sym = params !! fromLeft$ indexFromSelector sel
-        in let iRcp = elemIndex sym (getDoc ^. P.alphabet ^. P.freeSymbols)
-            in (getDoc ^. P.alphabet ^. P.freeSymbols) !! fromJust iRcp
-
 -- Draw obtained syms from the pool !
 -- Update env: => accum' <- ((accum `union` gotSyms) `inter` pool)
 --                pool' <- (pool `diff` (pool `inter` accum'))
@@ -125,14 +133,12 @@ poolSyms (sym:ls) = do
     params <- asks stateParams
     readEnt <- asks readEntry
     let sel s = Set.singleton$ paramFromSelector (params, s)
-    let selRCP s = Set.singleton$ rcpFromSelector (params, s)
     let gotSyms = case sym of
         getGlobFree ->  Set.fromList getFreeSyms
         getGlobAny -> Set.fromList getAllSyms
         getSameAsRead -> Set.singleton readEnt
-        sym ->  | T.concat getRCPOf getPlaceHolder `T.isPrefixOf` sym = selRCP s
-                | getPlaceHolder `T.isPrefixOf` sym = sel sym
-                | otherwise = Set.singleton sym
+        sym ->  | (_,"") <- T.breakOn getPlaceHolder sym = Set.singleton sym -- Not a tparam selector
+                | otherwise = sel sym -- A tparam selector, whether RCP or straight.
     let accum' = \uSyms -> pool `Set.intersection` (accum `Set.union` uSyms)
         pool' = \uSyms -> pool `Set.difference` (pool `Set.intersection` accum' uSyms)
         in updateEnv uSyms (Env lp la pms r) = Env (pool' uSyms) (accum' uSyms) pms r
