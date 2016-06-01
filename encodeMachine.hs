@@ -36,12 +36,17 @@ encodeMachine m input =
     "&TAPE_START" ++ encodeTransitions (transitions m) (finals m) ++ "&INIT"
     ++ initial m ++ "&INPUT" ++ input ++ "&EOI"
 
+showResult :: Machine -> String -> String
+showResult m input
+    | input `elem` alphabet m = encodeMachine m input
+    | otherwise               = "Wrong input"
+
 readJsonFile :: FilePath -> String -> IO ()
 readJsonFile file input = do
     myJson <- B.readFile file
     let parsed = Aeson.eitherDecode myJson :: Either String Machine
     case parsed of
-        Right x -> putStrLn $ encodeMachine x input
+        Right x -> putStrLn $ showResult x input
         Left y -> putStrLn y
 
 main :: IO ()
