@@ -2,6 +2,7 @@ module Main where
 
 import qualified Data.Aeson           as Aeson
 import qualified Data.ByteString.Lazy as B (readFile)
+import           Data.List            (maximumBy)
 import qualified Data.Map.Strict      as Map
 import           Prelude              hiding (read)
 import           System.Environment   (getArgs)
@@ -36,10 +37,28 @@ encodeMachine m input =
     "&TAPE_START" ++ encodeTransitions (transitions m) (finals m) ++ "&INIT"
     ++ initial m ++ "&INPUT" ++ input ++ "&EOI"
 
+legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
+legitElements [] _ tokens = tokens
+legitElements (x:xs) input legitTokens
+    | x == take len input = legitElements xs input $ (x, len) : legitTokens
+    | otherwise           = legitElements xs input legitTokens
+    where
+        len = length x
+
+isGoodInput :: [String] -> String -> Bool
+isGoodInput _ ""          = True
+isGoodInput symbols input =
+    not (null legitToks) && isGoodInput symbols (drop (snd goodSym) input)
+    where
+        legitToks = legitElements symbols input []
+        goodSym   = maximumBy (\ (_, x) (_, y) -> compare x y) legitToks
+
 showResult :: Machine -> String -> String
 showResult m input
-    | input `elem` alphabet m = encodeMachine m input
-    | otherwise               = "Wrong input"
+    | isGoodInput symbols input = encodeMachine m input
+    | otherwise                 = "Wrong input"
+    where
+        symbols = filter (\y -> y /= blank m) $ alphabet m
 
 readJsonFile :: FilePath -> String -> IO ()
 readJsonFile file input = do
