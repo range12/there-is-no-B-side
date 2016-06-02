@@ -107,8 +107,11 @@ main = do
         case parsed of
             Right x -> do
                 showMachine x
+                putStrLn $ args !! 1 ++ "\n"
                 let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
                 putStr "Test seq: "
                 print mySeq
-                showResult x (initial x) mySeq 0
+                if Seq.length mySeq > 0
+                then showResult x (initial x) mySeq 0
+                else return ()
             Left y -> putStrLn y

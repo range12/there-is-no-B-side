@@ -25,16 +25,21 @@ esc s
     | head s == '!' = "\\" ++ s
     | otherwise     = s
 
-encodeTransitions :: Map.Map String [Transition] -> [String] -> String
-encodeTransitions transMap finalStates =
+encodeTransitions :: Map.Map String [Transition] -> [String] -> Bool -> String
+encodeTransitions transMap finalStates True  =
     let encodeTransLst state ts acc = foldr (\x y -> y ++ "&TRANS" ++ esc state
             ++ esc (read x) ++ esc (to_state x) ++ esc (write x)
             ++ esc (getMove x $ to_state x `elem` finalStates)) acc ts
     in Map.foldrWithKey encodeTransLst "" transMap
+encodeTransitions transMap finalStates False =
+    let encodeTransLst state ts acc = foldr (\x y -> y ++ "&TRANS" ++ state
+            ++ read x ++ to_state x ++ write x
+            ++ (getMove x $ to_state x `elem` finalStates)) acc ts
+    in Map.foldrWithKey encodeTransLst "" transMap
 
-encodeMachine :: Machine -> String -> String
-encodeMachine m input =
-    "&TAPE_START" ++ encodeTransitions (transitions m) (finals m) ++ "&INIT"
+encodeMachine :: Machine -> String -> Bool -> String
+encodeMachine m input e =
+    "&TAPE_START" ++ encodeTransitions (transitions m) (finals m) e ++ "&INIT"
     ++ initial m ++ "&INPUT" ++ input ++ "&EOI"
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
@@ -53,24 +58,28 @@ isGoodInput symbols input =
         legitToks = legitElements symbols input []
         goodSym   = maximumBy (\ (_, x) (_, y) -> compare x y) legitToks
 
-showResult :: Machine -> String -> String
-showResult m input
-    | isGoodInput symbols input = encodeMachine m input
+showResult :: Machine -> String -> Bool -> String
+showResult m input isEscaped
+    | isGoodInput symbols input = encodeMachine m input isEscaped
     | otherwise                 = "Wrong input"
     where
         symbols = filter (\y -> y /= blank m) $ alphabet m
 
-readJsonFile :: FilePath -> String -> IO ()
-readJsonFile file input = do
+readJsonFile :: FilePath -> String -> Bool -> IO ()
+readJsonFile file input isEscaped = do
     myJson <- B.readFile file
     let parsed = Aeson.eitherDecode myJson :: Either String Machine
     case parsed of
-        Right x -> putStrLn $ showResult x input
+        Right x -> putStrLn $ showResult x input isEscaped
         Left y -> putStrLn y
 
 main :: IO ()
 main = do
     args <- getArgs
-    case args of
-        (x:(y:_)) -> readJsonFile x y
-        _ -> putStrLn "Error: parameters\nUsage: ./program ex.json \"input\""
+    let isEscaped = "-e" `elem` args
+    case filter (/= "-e") args of
+        (x:(y:_)) -> readJsonFile x y isEscaped
+        _ -> do
+            putStrLn "Error: parameters"
+            putStrLn "Usage: ./program ex.json \"input\" [-e]"
+            putStrLn "-e: Escape the '!'. Use this option if your shell needs it."
