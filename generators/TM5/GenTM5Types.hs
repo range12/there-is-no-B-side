@@ -85,7 +85,7 @@ makeState skelInstance =
 
 -- The caller manages the symbol collection: for each transition, drop given symbols.
 -- Caller passes its !!specially ordered!! resolved params to prepend on comprehension.
-comprehendStates :: SkelInstance -> [Text] -> [StateInstance]
+comprehendStates :: StateInstance -> [Text] -> [StateInstance]
 comprehendStates sk [] = sk
 comprehendStates (SI tName existingParams) collection =
     let construct = \p -> SI tName (existingParams ++ [p])
@@ -109,6 +109,12 @@ indexFromSelector sel =
         Just t -> Left$ doRead t 
         Nothing -> Right$ doRead sel
 
+-- Provided a bare, litteral sym from the `freeSyms` set
+-- -- May throw, provided a non-bare, non-freeSym symbol.
+resolveRCP :: Text -> Text
+resolveRCP t =  getRCPFree !! fromJust miRcp
+    where miRcp = elemIndex (params !! i) getFreeSyms
+
 -- From state instance params, a selector string: return the targeted parameter.
 -- A malformed selector,
 -- An improper (OOB index) selector,
@@ -118,32 +124,42 @@ paramFromSelector :: ([Text], Text) -> Text
 paramFromSelector (params, sel) = 
     case indexFromSelector sel of
         Right i -> params !! i
-        Left i -> let miRcp = elemIndex (params !! i) getFreeSyms
-                    in getRCPFree !! fromJust miRcp
+        Left i -> resolveRCP (params !! i)
      
 -- Draw obtained syms from the pool !
 -- Update env: => accum' <- ((accum `union` gotSyms) `inter` pool)
 --                pool' <- (pool `diff` (pool `inter` accum'))
 --             => Env pool' accum'
--- A starting pool must include reciprocal-free-syms !            
-data Env = Env { symPool :: Set Text, accumulator :: Set Text, stateParams :: [Text], readEntry :: Text }
-poolSyms :: [Text] -> Reader Env (Set Text)
-poolSyms [] = asks accumulator
-poolSyms (sym:ls) = do
-    params <- asks stateParams
-    readEnt <- asks readEntry
-    let sel s = Set.singleton$ paramFromSelector (params, s)
+-- Starting and reference pools must include reciprocal-free-syms !
+data Env = Env { availablePool :: Set Text, stateParams :: [Text], readEntry :: Text }
+gatherSyms :: [Text] -> State Env (Set Text)
+gatherSyms [] = gets availablePool >>= return$ Set.difference (Set.fromList getAllSyms)
+gatherSyms (sym:ls) = do
+    params <- gets stateParams
+    readEnt <- gets readEntry
+    e <- get
     let gotSyms = case sym of
         getGlobFree ->  Set.fromList getFreeSyms
         getGlobAny -> Set.fromList getAllSyms
-        getSameAsRead -> Set.singleton readEnt
-        sym ->  | (_,"") <- T.breakOn getPlaceHolder sym = Set.singleton sym -- Not a tparam selector
-                | otherwise = sel sym -- A tparam selector, whether RCP or straight.
-    let accum' = \uSyms -> pool `Set.intersection` (accum `Set.union` uSyms)
-        pool' = \uSyms -> pool `Set.difference` (pool `Set.intersection` accum' uSyms)
-        in updateEnv uSyms (Env lp la pms r) = Env (pool' uSyms) (accum' uSyms) pms r
-            in local (updateEnv gotSyms) (poolSyms ls)
--- FIXME: resulting pool might be used by the caller. => go State ?
+        sym ->  let isRCP = not . T.null . snd$ T.breakOn getRCPOf sym
+                    rcpStripped = spliceOut getRCPOf sym 
+                    in let resolve = resolveSelector isRCP rcpStripped
+                       in Set.singleton$ runReader resolve e
+    let pool' = \uSyms -> pool `Set.difference` uSyms
+        in updateEnv uSyms (Env lp pms r) = Env (pool' uSyms) pms r
+            in modify (updateEnv gotSyms) >> gatherSyms ls
+    where -- -- -- -- -- Helpers -- -- -- -- -- 
+        spliceOut exon txt = T.concat$ T.splitOn exon txt
+        resolveSelector :: Bool -> Text -> Reader Env Text
+        resolveSelector isRcp remainder =
+            readEnt <- asks readEntry
+            params <- asks stateParams
+            let morphRcp = if isRcp then resolveRcp else id
+            case remainder of
+                getSameAsRead -> morphRcp asRead
+                remainder -> | T.null$ snd$ T.breakOn getPlaceHolder remainder =
+                                    morphRcp$ paramFromSelector (params, remainder)
+                             | otherwise = morphRcp remainder
 
 
 -- ForEach I:O couple
