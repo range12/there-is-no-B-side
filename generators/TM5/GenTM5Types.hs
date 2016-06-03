@@ -136,6 +136,10 @@ paramFromSelector (params, sel) =
         Right i -> params !! i
         Left i -> resolveRCP (params !! i)
      
+-- CAVEAT: 'action' field is %%'ed for return_* states !
+-- CAVEAT²: 'action' field is %%'ed with non-symbols !
+--
+--
 -- Draw obtained syms from the pool !
 -- Update env: => accum' <- ((accum `union` gotSyms) `inter` pool)
 --                pool' <- (pool `diff` (pool `inter` accum'))
