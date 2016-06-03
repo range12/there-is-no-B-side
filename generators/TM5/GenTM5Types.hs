@@ -13,7 +13,7 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap as HM
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Set (Seq, (|>), (<|), (><))
+import Data.Sequence (Seq, (|>), (<|), (><))
 import qualified Data.Sequence as Sq
 import Control.Monad.Reader
 import Data.List as L
@@ -153,7 +153,7 @@ gatherSyms (sym:ls) = do
     let gotSyms = case sym of
         getGlobFree ->  Set.fromList getFreeSyms
         getGlobAny -> Set.fromList getAllSyms
-        sym ->  let isRCP = not . T.null . snd$ T.breakOn getRCPOf sym
+        sym ->  let isRCP = T.isInfixOf getRCPOf sym
                     rcpStripped = spliceOut getRCPOf sym 
                     in let resolve = resolveSelector isRCP rcpStripped
                        in Set.singleton$ runReader resolve e
@@ -161,7 +161,7 @@ gatherSyms (sym:ls) = do
         in let updateEnv uSyms (Env lp pms r) = Env (pool' uSyms) pms r
             in modify (updateEnv gotSyms)
     let gathered = Set.toList$ pool `Set.intersection` gotSyms
-        in  return . (gathered ++) =<< gatherSyms ls
+        in  return . mappend gathered =<< gatherSyms ls
     where -- -- -- -- -- -- -- Helpers -- -- -- -- -- -- --
         spliceOut exon txt = T.concat$ T.splitOn exon txt
         resolveSelector :: Bool -> Text -> Reader Env Text
@@ -171,7 +171,7 @@ gatherSyms (sym:ls) = do
             let morphRcp = if isRcp then resolveRcp else id
             case remainder of
                 getSameAsRead -> morphRcp asRead
-                remainder -> | T.null$ snd$ T.breakOn getPlaceHolder remainder =
+                remainder -> | not$ T.isInfixOfn getPlaceHolder remainder =
                                     morphRcp$ paramFromSelector (params, remainder)
                              | otherwise = morphRcp remainder
 
@@ -190,17 +190,20 @@ instantiateTrans ((is,os):lio) =
         collection = Set.fromList getAllSyms
         oConcreteSyms = mconcat$ resolveSyms [os] collection <$> iConcreteSyms
         pConcretePrms = resolveSyms tpms collection <$> iConcreteSyms
+        cActs = if T.isInfixOf getPlaceHolder act
+            then \ps -> paramFromSelector (ps,act) <$> pConcretePrms
+            else repeat act
         lsStates = makeState <$> SI toSt <$> pConcretePrms
       in let serialCTrans = zipWith4 TM5CTrans
                                 iConcreteSyms
                                 (nameSI <$> lsStates)
                                 oConcreteSyms
-                                (repeat act)
+                                cActs
         in let cTrans = zipWith RCTrans
                                 serialCTrans
                                 (paramsSI <$> lsStates)
     put iRemPool
-    return . (cTrans ++) =<< instantiateTrans lio
+    return . mappend cTrans =<< instantiateTrans lio
 
 -- ForEach I:O couple
 --  comprehend template I:O couples
