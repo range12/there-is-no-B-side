@@ -56,8 +56,9 @@ data TM5ConcreteTransition = TM5CTrans {
 $(deriveJSON defaultOptions ''TM5ConcreteTrans)
 
 data RichCTransition = RCTrans {
-    cTrans :: TM5ConcreteTransition
-    , paramsRCT :: [Text]
+    cTransRCT :: TM5ConcreteTransition -- toJSON
+    , skellNameRCT :: Text -- template name, i.e. HM key to children template trans.
+    , paramsRCT :: [Text] -- resolved params for this trans., used by children
 } deriving Show
 
 data StateInstance = SI {
@@ -93,14 +94,15 @@ makeState skelInstance =
           _ ->  return $ SI (T.concat $ L.transpose $ [bits, params]) params
 
 
--- The caller manages the symbol collection: for each transition, drop given symbols.
--- Caller passes its !!specially ordered!! resolved params to prepend on comprehension.
-comprehendStates :: StateInstance -> [Text] -> [StateInstance]
-comprehendStates sk [] = sk
-comprehendStates (SI tName existingParams) collection =
-    let construct = \p -> SI tName (existingParams ++ [p])
-      in runMakeState = makeState . construct
-        in [runMakeState param | param <- collection]
+-- UNUSED ATM.
+-- -- The caller manages the symbol collection: for each transition, drop given symbols.
+-- -- Caller passes its !!specially ordered!! resolved params to prepend on comprehension.
+-- comprehendStates :: StateInstance -> [Text] -> [StateInstance]
+-- comprehendStates sk [] = sk
+-- comprehendStates (SI tName existingParams) collection =
+--     let construct = \p -> SI tName (existingParams ++ [p])
+--       in runMakeState = makeState . construct
+--         in [runMakeState param | param <- collection]
 
 
 -- Takes a selector
@@ -176,6 +178,9 @@ gatherSyms (sym:ls) = do
                              | otherwise = morphRcp remainder
 
 
+
+
+
 instantiateTrans   :: [(Text, Text)]                           -- Template IO couples
                    -> StateT   (Set Text)                      -- Allowed Sym pool to draw from
                                (Reader (StateInstance, P.M5Transition)) -- reference concrete state, template transition
@@ -183,7 +188,7 @@ instantiateTrans   :: [(Text, Text)]                           -- Template IO co
 instantiateTrans [] = return []
 instantiateTrans ((is,os):lio) =
     (SI _ concreteParams
-        , P.M5Trans _ toSt tpms act)  <- lift . ask
+        , P.M5Trans _ skToSt tpms act)  <- lift . ask
     symPool <- get
     let (iConcreteSyms, Env iRemPool _ _) = runState (gatherSyms [is]) (Env symPool concreteParams is)
     let resolveSyms = \el poo rs -> evalState (gatherSyms el) (Env poo concreteParams rs)
@@ -193,15 +198,16 @@ instantiateTrans ((is,os):lio) =
         cActs = if T.isInfixOf getPlaceHolder act
             then \ps -> paramFromSelector (ps,act) <$> pConcretePrms
             else repeat act
-        lsStates = makeState <$> SI toSt <$> pConcretePrms
+        lsStates = makeState <$> SI skToSt <$> pConcretePrms
       in let serialCTrans = zipWith4 TM5CTrans
                                 iConcreteSyms
                                 (nameSI <$> lsStates)
                                 oConcreteSyms
                                 cActs
-        in let cTrans = zipWith RCTrans
+        in let cTrans = zipWith2 RCTrans
                                 serialCTrans
                                 (paramsSI <$> lsStates)
+                                (repeat skToSt)
     put iRemPool
     return . mappend cTrans =<< instantiateTrans lio
 
@@ -211,28 +217,19 @@ instantiateTrans ((is,os):lio) =
 --      comprehend template States
 --          makeTransition
 
--- makeTransitionInstance :: StateInstance -> SkelTransition -> ConcreteTransition
--- makeTransitionInstance :: key -> HashMap TemplateState [SkelTransitions]
 makeTransitions :: StateInstance
-                -> P.M5Transition
-                -> State (Set Text) [TM5ConcreteTrans]
-makeTransitions (SI state params, skelKey) ptrans =
-    let ?deathMessage = "makeTransitions: could not find state: " ++ T.unpack skelKey
-    let skToState = ptrans ^. toStatePattern
-    let skToStatePms = ptrans ^. toStateParams
-    let ((iS, oS):lio) = skelTrans ^. P.inputOutput
-    providedPool <- get
-    let (iSubset, Env remPool _ _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
-    let (oSubset, _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
-    let (toStSubset, _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
-    let lsToStates = comprehendStates (SI skToState params) symSubset
+                -> [P.M5Transition]
+                -> State (Set Text) (HashMap Text [TM5ConcreteTrans])
+makeTransitions si@(SI state params) lptrans =
+    return . mconcat =<< forM lptrans \pTr -> do
+        pool <- get
+        let iol = inputOutput ^. pTr
+            in let (lRichTr',remPool) =
+                flip runReader (si, pTr)
+                $ runStateT (instantiateTrans iol) pool
+        put remPool
+        return lRichTr'
     
-
-
--- (StateInstance, SkelState) -> SkelTrans -> State [Syms] [ConcreteStates]
--- makeTransition....
-
---  
 
 
 -- ForEach starting state template
@@ -242,6 +239,7 @@ makeTransitions (SI state params, skelKey) ptrans =
 
 instantiateDoc :: State TM5Machine ()
 instantiateDoc = do
+--    let ?deathMessage = "makeTransitions: could not find state: " ++ T.unpack skelKey
     let doc = getDoc
     let alphaDoc = doc ^. P.alphabet
     let collec = alphaDoc ^. P.collection
@@ -255,7 +253,7 @@ instantiateDoc = do
         iniState
         staticFinals
         HM.empty
-    put initTM5
-    gets (HM.toList $ doc ^. P.transitions) >>=
+        in put initTM5
+    let RCTrans = evalState (makeTransitions SI? lPTrans?) (Set.fromList collec)
 
 
