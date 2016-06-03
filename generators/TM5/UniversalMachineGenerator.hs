@@ -26,14 +26,19 @@ makeReciprocal = fmap (T.cons '~')
 constructDoc :: Reader TM5Doc TM5Doc
 constructDoc = do
     let getAlpha = view freeSymbols . view alphabet
+    let getRCP = view freeSymbolsRCP . view alphabet
+        getTags = view hostTags  . view alphabet
+        getTapeSyms = view tapeActSyms . view alphabet
     alpha <- asks getAlpha
+    collec <- asks <$> [getRCP, getTags, getTapeSyms] >>= sequence >>= return . mconcat
     if null alpha then
         let setAlpha = over alphabet . set freeSymbols
             in local (setAlpha defaultAlphabet) constructDoc
     else do
         let setRcp = over alphabet . set freeSymbolsRCP
+        let setCollection = over alphabet . set collection
         let rcp = makeReciprocal alpha
-        ask >>= return . (setRcp rcp)
+        ask >>= return . (setCollection collec$ setRcp rcp)
 
 
 main = do

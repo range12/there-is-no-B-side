@@ -13,12 +13,17 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap as HM
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Set (Seq, (|>), (<|), (><))
+import qualified Data.Sequence as Sq
 import Control.Monad.Reader
 import Data.List as L
 import GenTM5Parser (getDoc, TM5Machine)
 import qualified GenTM5Parser as P
 import Prelude hiding (read)
 import qualified Prelude as Pre (read)
+
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Reader
 
 import Data.Maybe
 import Data.Either
@@ -49,6 +54,11 @@ data TM5ConcreteTransition = TM5CTrans {
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TM5ConcreteTrans)
+
+data RichCTransition = RCTrans {
+    cTrans :: TM5ConcreteTransition
+    , paramsRCT :: [Text]
+} deriving Show
 
 data StateInstance = SI {
     nameSI :: Text
@@ -132,12 +142,10 @@ paramFromSelector (params, sel) =
 --             => Env pool' accum'
 -- Starting and reference pools must include reciprocal-free-syms !
 data Env = Env { availablePool :: Set Text, stateParams :: [Text], readEntry :: Text }
-gatherSyms :: [Text] -> State Env (Set Text)
-gatherSyms [] = gets availablePool >>= return$ Set.difference (Set.fromList getAllSyms)
+gatherSyms :: [Text] -> State Env [Text]
+gatherSyms [] = return []
 gatherSyms (sym:ls) = do
-    params <- gets stateParams
-    readEnt <- gets readEntry
-    e <- get
+    e@(Env pool params readEnt) <- get
     let gotSyms = case sym of
         getGlobFree ->  Set.fromList getFreeSyms
         getGlobAny -> Set.fromList getAllSyms
@@ -146,9 +154,11 @@ gatherSyms (sym:ls) = do
                     in let resolve = resolveSelector isRCP rcpStripped
                        in Set.singleton$ runReader resolve e
     let pool' = \uSyms -> pool `Set.difference` uSyms
-        in updateEnv uSyms (Env lp pms r) = Env (pool' uSyms) pms r
-            in modify (updateEnv gotSyms) >> gatherSyms ls
-    where -- -- -- -- -- Helpers -- -- -- -- -- 
+        in let updateEnv uSyms (Env lp pms r) = Env (pool' uSyms) pms r
+            in modify (updateEnv gotSyms)
+    let gathered = Set.toList$ pool `Set.intersection` gotSyms
+        in  return . (gathered ++) =<< gatherSyms ls
+    where -- -- -- -- -- -- -- Helpers -- -- -- -- -- -- --
         spliceOut exon txt = T.concat$ T.splitOn exon txt
         resolveSelector :: Bool -> Text -> Reader Env Text
         resolveSelector isRcp remainder =
@@ -162,6 +172,32 @@ gatherSyms (sym:ls) = do
                              | otherwise = morphRcp remainder
 
 
+instantiateTrans   :: [(Text, Text)]                           -- Template IO couples
+                   -> StateT   (Set Text)                      -- Allowed Sym pool to draw from
+                               (Reader (StateInstance, P.M5Transition)) -- reference concrete state, template transition
+                               [RichCTransition]                -- Resulting concrete transitions
+instantiateTrans [] = return []
+instantiateTrans ((is,os):lio) =
+    (SI _ concreteParams
+        , P.M5Trans _ toSt tpms act)  <- lift . ask
+    symPool <- get
+    let (iConcreteSyms, Env iRemPool _ _) = runState (gatherSyms [is]) (Env symPool concreteParams is)
+    let resolveSyms = \el poo rs -> evalState (gatherSyms el) (Env poo concreteParams rs)
+        collection = Set.fromList getAllSyms
+        oConcreteSyms = mconcat$ resolveSyms [os] collection <$> iConcreteSyms
+        pConcretePrms = resolveSyms tpms collection <$> iConcreteSyms
+        lsStates = makeState <$> SI toSt <$> pConcretePrms
+      in let serialCTrans = zipWith4 TM5CTrans
+                                iConcreteSyms
+                                (nameSI <$> lsStates)
+                                oConcreteSyms
+                                (repeat act)
+        in let cTrans = zipWith RCTrans
+                                serialCTrans
+                                (paramsSI <$> lsStates)
+    put iRemPool
+    return . (cTrans ++) =<< instantiateTrans lio
+
 -- ForEach I:O couple
 --  comprehend template I:O couples
 --      instantiate State:
@@ -170,32 +206,26 @@ gatherSyms (sym:ls) = do
 
 -- makeTransitionInstance :: StateInstance -> SkelTransition -> ConcreteTransition
 -- makeTransitionInstance :: key -> HashMap TemplateState [SkelTransitions]
-makeTransitions :: (StateInstance, Text)                            -- First / current (StateInstance, skeletonKey)
-                -> Reader   (HashMap Text [P.M5Transition])         -- Reference Skeleton HashMap for recurring lookup
-                            (HashMap Text [TM5ConcreteTransition])  -- Assembled concrete result
-makeTransitions (SI state params, skelKey) =
+makeTransitions :: StateInstance
+                -> P.M5Transition
+                -> State (Set Text) [TM5ConcreteTrans]
+makeTransitions (SI state params, skelKey) ptrans =
     let ?deathMessage = "makeTransitions: could not find state: " ++ T.unpack skelKey
-    let skelMap = getDoc ^. P.transitions
-        in let skTrans = lookupOrDie skelKey skelMap
-    let collection = Set.fromList $ getDoc ^. P.alphabet ^. P.collection
-    let symSubset = 
-    let lsStates = comprehendStates (SI skState PARAMS) SUBSET
-    let result = HM.fromList $ zip (repeat skelKey) (nameSI <$> lsStates)
---
---    let recurse st sk = evalState $ makeTransitions (st, sk) HM.empty
---    mapM (evalState . (makeTransitions)(`HM.union` result)
---        $ evalState
---        $ makeTransitions (
---    where
---
---
---        getSubset :: [P.M5Transition] -> Set Text
---        getSubset [] = mempty
---        getSubset (P.M5Trans ioLs _ pms _ :ts) = 
+    let skToState = ptrans ^. toStatePattern
+    let skToStatePms = ptrans ^. toStateParams
+    let ((iS, oS):lio) = skelTrans ^. P.inputOutput
+    providedPool <- get
+    let (iSubset, Env remPool _ _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
+    let (oSubset, _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
+    let (toStSubset, _) = runState (gatherSyms inputTSyms) (Env providedPool params READ?)
+    let lsToStates = comprehendStates (SI skToState params) symSubset
     
 
 
+-- (StateInstance, SkelState) -> SkelTrans -> State [Syms] [ConcreteStates]
+-- makeTransition....
 
+--  
 
 
 -- ForEach starting state template

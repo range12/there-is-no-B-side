@@ -8,7 +8,7 @@ Alphabet:
     Glob_host_tags: &glob_host_tags "&*"
     Guest_shift: &guest_shift ["!LSH", "!RSH", "!LSH_HALT", "!RSH_HALT"]
     Glob_tape_actions: &glob_tape_actions "!*"
-    Guest_free_symbols: &guest_free_symbols []
+    Guest_free_symbols: &guest_free_symbols [wow, much, turing, so, doge]
     Glob_guest_free_symbols: &glob_guest_free_symbols "SYM*"
     Reciprocal_to_free_symbols: &reciprocal_to_free_symbols []
     Glob_reciprocal_to_free_symbols: &glob_reciprocal_to_free_symbols "~*"
