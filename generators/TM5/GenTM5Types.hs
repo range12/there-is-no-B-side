@@ -211,6 +211,7 @@ instantiateTrans ((is,os):lio) =
     put iRemPool
     return . mappend cTrans =<< instantiateTrans lio
 
+
 -- ForEach I:O couple
 --  comprehend template I:O couples
 --      instantiate State:
@@ -219,16 +220,17 @@ instantiateTrans ((is,os):lio) =
 
 makeTransitions :: StateInstance
                 -> [P.M5Transition]
-                -> State (Set Text) (HashMap Text [TM5ConcreteTrans])
-makeTransitions si@(SI state params) lptrans =
-    return . mconcat =<< forM lptrans \pTr -> do
+                -> State (Set Text) (HashMap Text [RichCTransition])
+makeTransitions si@(SI parentState params) lptrans =
+    let foldingLRCTr = HM.insertWith (++) parentState
+    flip . flip foldM$ HM.empty lptrans \accuHM -> \pTr -> do
         pool <- get
         let iol = inputOutput ^. pTr
-            in let (lRichTr',remPool) =
+            in let (lRichTr,remPool) =
                 flip runReader (si, pTr)
                 $ runStateT (instantiateTrans iol) pool
         put remPool
-        return lRichTr'
+        return$ foldr foldingLRCTr accuHM lRichTr
     
 
 
