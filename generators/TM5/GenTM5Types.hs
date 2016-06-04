@@ -55,6 +55,7 @@ data TM5ConcreteTransition = TM5CTrans {
 
 $(deriveJSON defaultOptions ''TM5ConcreteTrans)
 
+-- Rich transitions: embeds instantiation meta data along serializable structure.
 data RichCTransition = RCTrans {
     cTransRCT :: TM5ConcreteTransition -- toJSON
     , skellNameRCT :: Text -- template name, i.e. HM key to children template trans.
@@ -218,19 +219,21 @@ instantiateTrans ((is,os):lio) =
 --      comprehend template States
 --          makeTransition
 
-makeTransitions :: StateInstance
-                -> [P.M5Transition]
-                -> State (Set Text) (HashMap Text [RichCTransition])
+makeTransitions :: StateInstance -- Previous concrete state, whence the transition is starting form.
+                -> [P.M5Transition] -- Associated template transitions
+                -> State (Set Text) -- Track consumed symbols as state
+                    (HashMap Text [RichCTransition]) -- fold resulting concrete transitions.
 makeTransitions si@(SI parentState params) lptrans =
     let foldingLRCTr = HM.insertWith (++) parentState
-    flip . flip foldM$ HM.empty lptrans \accuHM -> \pTr -> do
-        pool <- get
-        let iol = inputOutput ^. pTr
-            in let (lRichTr,remPool) =
-                flip runReader (si, pTr)
-                $ runStateT (instantiateTrans iol) pool
-        put remPool
-        return$ foldr foldingLRCTr accuHM lRichTr
+        in flip . flip foldM$ HM.empty lptrans  \accuHM ->
+                                                \skellTr -> do
+            pool <- get
+            let iol = inputOutput ^. skellTr
+                in let (lRichTr,remPool) =
+                    flip runReader (si, skellTr)
+                    $ runStateT (instantiateTrans iol) pool
+            put remPool
+            return$ foldr foldingLRCTr accuHM ((:[]) <$> lRichTr)
     
 
 
