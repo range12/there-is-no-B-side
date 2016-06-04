@@ -1,12 +1,12 @@
 module Main where
 
-import Turing
-import qualified Data.ByteString.Lazy as B(readFile)
-import System.Environment
-import qualified Data.Aeson as Aeson
-import qualified Data.Sequence as Seq
-import qualified Data.Map.Strict as Map
-import qualified Data.List as List
+import qualified Data.Aeson           as Aeson
+import qualified Data.ByteString.Lazy as B (readFile)
+import qualified Data.List            as List
+import qualified Data.Map.Strict      as Map
+import qualified Data.Sequence        as Seq
+import           System.Environment
+import           Turing
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
 legitElements [] _ tokens = tokens
@@ -111,7 +111,5 @@ main = do
                 let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
                 putStr "Test seq: "
                 print mySeq
-                if Seq.length mySeq > 0
-                then showResult x (initial x) mySeq 0
-                else return ()
+                showResult x (initial x) mySeq 0
             Left y -> putStrLn y
