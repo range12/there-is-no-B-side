@@ -223,9 +223,9 @@ makeTransitions :: StateInstance -- Previous concrete state, whence the transiti
                 -> [P.M5Transition] -- Associated template transitions
                 -> State (Set Text) -- Track consumed symbols as state
                     (HashMap Text [RichCTransition]) -- fold resulting concrete transitions.
-makeTransitions si@(SI parentState params) lptrans =
+makeTransitions si@(SI parentState _) lSkellTr =
     let foldingLRCTr = HM.insertWith (++) parentState
-        in flip . flip foldM$ HM.empty lptrans  \accuHM ->
+        in flip . flip foldM$ HM.empty lSkellTr \accuHM ->
                                                 \skellTr -> do
             pool <- get
             let iol = inputOutput ^. skellTr
@@ -234,7 +234,7 @@ makeTransitions si@(SI parentState params) lptrans =
                     $ runStateT (instantiateTrans iol) pool
             put remPool
             return$ foldr foldingLRCTr accuHM ((:[]) <$> lRichTr)
-    
+
 
 
 -- ForEach starting state template
@@ -259,6 +259,9 @@ instantiateDoc = do
         staticFinals
         HM.empty
         in put initTM5
-    let RCTrans = evalState (makeTransitions SI? lPTrans?) (Set.fromList collec)
+-- TODO:
+-- recursively get HashMaps of (Text)concreteState:[RichConcreteTransitions]
+-- resumbitting their tempate children (for each concrete instance) for instantiation.
+-- A used HM { Text : [RCT] } is morphed-folded into the serializable HM { Text : [CT] }.
 
 
