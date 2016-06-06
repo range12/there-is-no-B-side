@@ -41,7 +41,7 @@ data TM5Machine = TM5 {
     , states :: [Text]
     , initial :: Text
     , finals :: [Text]
-    , transitions :: HashMap Text [TM5ConcreteTrans]
+    , transitions :: HashMap Text [TM5ConcreteTransition]
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TM5Machine)
@@ -73,8 +73,8 @@ exitError s = unsafeDupablePerformIO $ hPutStrLn stderr s >> exitFailure >> retu
 myThrow :: a -> b
 myThrow _ = undefined
 
-lookupOrDie :: (?deathMessage :: String) => k -> HashMap k v -> v
-lookupOrDie = HM.lookupDefault (exitError ?deathMessage)
+lookupOrDie :: (?deathMessage :: ShowS, Show k) => k -> HashMap k v -> v
+lookupOrDie = HM.lookupDefault (exitError $ ?deathMessage $ show k)
 
 getPlaceHolder = getDoc ^. P.templatePatterns ^. P.inheritedNth
 getRCPOf = getDoc ^. P.templatePatterns ^. P.reciprocal
@@ -256,9 +256,7 @@ dispatchInstantiation ((cState, lRCTr):ls) =
     where
         mkSI el = cState `SI` paramsRCT el
         fetchSkTr el = let skellKey = skellNameRCT el
-            let ?deathMessage =
-                "dispatchInstantiation: could not find state: "
-                ++ T.unpack skellKey
+            let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
               in lookUpOrDie (skellNameRCT el) skellHM 
     
 
@@ -267,32 +265,24 @@ dispatchInstantiation ((cState, lRCTr):ls) =
 --          encode (R,W) transition
 --              <=> instantiate . encode $ nextState
 
-instantiateDoc :: State TM5Machine ()
+instantiateDoc :: TM5Machine
 instantiateDoc = do
-    let ?deathMessage = "__func__: could not find state: " ++ T.unpack skelKey
+    let ?deathMessage = (++) "instantiateDoc: could not find state: "
     let doc = getDoc
         alphaDoc = doc ^. P.alphabet
-        collec = alphaDoc ^. P.collection
         iniState = doc ^. P.initialState
         staticFinals = doc ^. P.finalStates
-        initTM5 =  TM5
-        "UniversalMachine"
-        collec
-        (alphaDoc ^. P.blank)
-        finals
-        iniState
-        staticFinals
-        HM.empty
-        in put initTM5
         skellHM = doc ^. P.transitions
         iniTrans = lookupOrDie iniState skellHM
-        bootstrapInstance = undefined {- evalState$
-        (makeTransitions initialSI skellInitial) (Set.fromList collec)
-    -}
-      in let result = runReader (reader id$ dispatchInstantiation bootstrapInstance) HM.empty
--- TODO:
--- recursively get HashMaps of (Text)concreteState:[RichConcreteTransitions]
--- resumbitting their tempate children (for each concrete instance) for instantiation.
--- A used HM { Text : [RCT] } is morphed-folded into the serializable HM { Text : [CT] }.
-
-
+        bootstrapInstance = HM.assocs . evalState$ 
+            (makeTransitions (SI iniState []) (lookupOrDie iniState skellHM))
+            getAllSymsSet
+        concreteTrans = runReader (reader id$ dispatchInstantiation bootstrapInstance) HM.empty
+        in TM5
+            "UniversalMachine"
+            getAllSyms
+            (alphaDoc ^. P.blank)
+            (HM.keys concreteTrans)
+            iniState
+            staticFinals  -- TODO: put concrete finals there !
+            concreteTrans

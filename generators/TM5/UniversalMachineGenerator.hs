@@ -6,6 +6,7 @@ import System.Exit
 import qualified Data.ByteString as B
 import Control.Applicative
 import qualified Data.Yaml as Y
+import Data.Aeson.Encode.Pretty
 import GenTM5Parser
 import Control.Monad.Reader
 import qualified Data.Text as T
@@ -17,6 +18,7 @@ import System.IO.Unsafe
 
 
 skellFile = "tm5_skel.yml"
+outputFile = "TM5.json"
 
 defaultAlphabet = fmap T.pack $ (:[]) <$> ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0'.. '9']
 
@@ -48,4 +50,5 @@ main = do
         Left err -> putStrLn err >> exitFailure
         Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
            >> print getDoc
-
+    B.writeFile outputFile $ encodePretty defConfig instantiateDoc
+    putStrLn $ "Success ! File " ++ outputFile ++ " has been written."
