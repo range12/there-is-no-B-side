@@ -84,6 +84,7 @@ getGlobFree = getDoc ^. P.alphabet ^. P.globFreeSymbols
 getFreeSyms = getDoc ^. P.alphabet ^. P.freeSymbols
 getRCPFree = getDoc ^. P.alphabet ^. P.freeSymbolsRCP
 getAllSyms = getDoc ^. P.alphabet ^. P.collection
+getAllSymsSet = Set.fromList getAllSyms 
 
 makeState   :: StateInstance -- a template name and a list of concrete template params.
             -> StateInstance -- the resulting concrete name and list of concrete params.
@@ -219,9 +220,9 @@ instantiateTrans ((is,os):lio) =
 --      comprehend template States
 --          makeTransition
 
-makeTransitions :: StateInstance -- Previous concrete state, whence the transition is starting form.
+makeTransitions :: StateInstance -- Previous concrete state, whence the transition is starting from.
                 -> [P.M5Transition] -- Associated template transitions
-                -> State (Set Text) -- Track consumed symbols as state
+                -> State (Set Text) -- Track consumed symbols as a State
                     (HashMap Text [RichCTransition]) -- fold resulting concrete transitions.
 makeTransitions si@(SI parentState _) lSkellTr =
     let foldingLRCTr = HM.insertWith (++) parentState
@@ -236,6 +237,30 @@ makeTransitions si@(SI parentState _) lSkellTr =
             return$ foldr foldingLRCTr accuHM ((:[]) <$> lRichTr)
 
 
+type ConcreteTransitions = HashMap Text [TM5ConcreteTransition]
+dispatchInstantiation :: [(Text,[RichCTransition])]
+                      -> Reader ConcreteTransitions
+                         ()
+dispatchInstantiation [] = return () 
+dispatchInstantiation ((cState, lRCTr):ls) =
+    let skellHM = getDoc ^. P.transitions
+        collec = getAllSymsSet
+        localUpdate = \hm -> HM.insertWith (++) cState cTr hm
+        callMkTrans = \si -> \lSkTr -> collec `evalState` makeTransitions si lSkTr
+        laterTasks = HM.assocs$ flip . flip foldr HM.empty lRCTr
+            $\el ->
+            \accHM ->
+            HM.unionWith (++) accHM
+                $ callMkTrans (mkSI el) (fetchSkTr el)
+    local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
+    where
+        mkSI el = cState `SI` paramsRCT el
+        fetchSkTr el = let skellKey = skellNameRCT el
+            let ?deathMessage =
+                "dispatchInstantiation: could not find state: "
+                ++ T.unpack skellKey
+              in lookUpOrDie (skellNameRCT el) skellHM 
+    
 
 -- ForEach starting state template
 --      ForEach (R,W)
@@ -244,13 +269,13 @@ makeTransitions si@(SI parentState _) lSkellTr =
 
 instantiateDoc :: State TM5Machine ()
 instantiateDoc = do
---    let ?deathMessage = "makeTransitions: could not find state: " ++ T.unpack skelKey
+    let ?deathMessage = "__func__: could not find state: " ++ T.unpack skelKey
     let doc = getDoc
-    let alphaDoc = doc ^. P.alphabet
-    let collec = alphaDoc ^. P.collection
-    let iniState = doc ^. P.initialState
-    let staticFinals = doc ^. P.finalStates
-    let initTM5 =  TM5
+        alphaDoc = doc ^. P.alphabet
+        collec = alphaDoc ^. P.collection
+        iniState = doc ^. P.initialState
+        staticFinals = doc ^. P.finalStates
+        initTM5 =  TM5
         "UniversalMachine"
         collec
         (alphaDoc ^. P.blank)
@@ -259,6 +284,12 @@ instantiateDoc = do
         staticFinals
         HM.empty
         in put initTM5
+        skellHM = doc ^. P.transitions
+        iniTrans = lookupOrDie iniState skellHM
+        bootstrapInstance = undefined {- evalState$
+        (makeTransitions initialSI skellInitial) (Set.fromList collec)
+    -}
+      in let result = runReader (reader id$ dispatchInstantiation bootstrapInstance) HM.empty
 -- TODO:
 -- recursively get HashMaps of (Text)concreteState:[RichConcreteTransitions]
 -- resumbitting their tempate children (for each concrete instance) for instantiation.

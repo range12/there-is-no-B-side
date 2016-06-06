@@ -67,9 +67,9 @@ data TM5Doc = TM5Doc {
 $(makeLenses ''TM5Doc)
 
 refTM5Doc :: IORef TM5Doc
-refTM5Doc = unsafeDupablePerformIO $ newIORef undefined
+refTM5Doc = unsafeDupablePerformIO$ unsafeInterleaveIO$ newIORef undefined
 
-getDoc = unsafeDupablePerformIO $ readIORef refTM5Doc
+getDoc = unsafeDupablePerformIO$ unsafeInterleaveIO$ readIORef refTM5Doc
 
 
 valueToText :: Value -> Parser Text
