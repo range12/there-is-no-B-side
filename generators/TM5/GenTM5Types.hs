@@ -190,7 +190,7 @@ instantiateTrans   :: [(Text, Text)]                           -- Template IO co
 instantiateTrans [] = return []
 instantiateTrans ((is,os):lio) =
     (SI _ concreteParams
-        , P.M5Trans _ skToSt tpms act)  <- lift . ask
+        , P.M5Trans _ skToSt tpms act)  <- lift ask
     symPool <- get
     let (iConcreteSyms, Env iRemPool _ _) = runState (gatherSyms [is]) (Env symPool concreteParams is)
     let resolveSyms = \el poo rs -> evalState (gatherSyms el) (Env poo concreteParams rs)
@@ -239,25 +239,29 @@ makeTransitions si@(SI parentState _) lSkellTr =
 
 type ConcreteTransitions = HashMap Text [TM5ConcreteTransition]
 dispatchInstantiation :: [(Text,[RichCTransition])]
-                      -> Reader ConcreteTransitions
+                      -> ReaderT ConcreteTransitions
+                         (State [Text])                    -- final states instances
                          ()
-dispatchInstantiation [] = return () 
+dispatchInstantiation [] = return ()
 dispatchInstantiation ((cState, lRCTr):ls) =
     let skellHM = getDoc ^. P.transitions
         collec = getAllSymsSet
         localUpdate = \hm -> HM.insertWith (++) cState cTr hm
-        callMkTrans = \si -> \lSkTr -> collec `evalState` makeTransitions si lSkTr
-        laterTasks = HM.assocs$ flip . flip foldr HM.empty lRCTr
-            $\el ->
-            \accHM ->
-            HM.unionWith (++) accHM
-                $ callMkTrans (mkSI el) (fetchSkTr el)
-    local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
-    where
-        mkSI el = cState `SI` paramsRCT el
+    finalList <- lift get
+    let (laterTasks,moreFinals) = flip runState finalList$ return . HM.assocs =<< foldM stateFold HM.empty lRCTr
+      in lift (put moreFinals) >> local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
+    where -----------------------------------------------------------------------------
         fetchSkTr el = let skellKey = skellNameRCT el
             let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
               in lookUpOrDie (skellNameRCT el) skellHM 
+        stateFold :: HashMap Text [RichCTransition] -> RichCTransition -> State [Text] ConcreteTransitions
+        stateFold = \accHM -> \el -> do
+            let skSt = skellNameRCT el
+            let callMkTrans = \si -> \lSkTr -> collec `evalState` makeTransitions si lSkTr
+            let hmRich = callMkTrans (SI skST$ paramsRCT el) (fetchSkTr el)
+            when (skSt `elem` skellFinals)$
+                get >>= put . (++ [cState])
+            return$ HM.unionWith (++) accHM hmRich
     
 
 -- ForEach starting state template
@@ -274,15 +278,15 @@ instantiateDoc = do
         staticFinals = doc ^. P.finalStates
         skellHM = doc ^. P.transitions
         iniTrans = lookupOrDie iniState skellHM
-        bootstrapInstance = HM.assocs . evalState$ 
+        bootstrapInstance = HM.assocs $ evalState 
             (makeTransitions (SI iniState []) (lookupOrDie iniState skellHM))
             getAllSymsSet
-        concreteTrans = runReader (reader id$ dispatchInstantiation bootstrapInstance) HM.empty
+        (cFinals, concreteTrans) = runState (runReaderT (reader id$ dispatchInstantiation bootstrapInstance) HM.empty) []
         in TM5
             "UniversalMachine"
             getAllSyms
             (alphaDoc ^. P.blank)
             (HM.keys concreteTrans)
             iniState
-            staticFinals  -- TODO: put concrete finals there !
+            cFinals
             concreteTrans

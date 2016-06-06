@@ -279,5 +279,6 @@ Transitions:
 Special_states:
     initial: *initial_state
     finals: ["error"]
+    template_finals: &template_finals ["final_%%"]
 
 ...

@@ -62,6 +62,7 @@ data TM5Doc = TM5Doc {
     , _transitions :: HashMap Text [M5Transition]
     , _intialState :: Text
     , _finalStates :: [Text]
+    , _templateFinalStates :: [Text]
 } deriving (Show, Generic)
 
 $(makeLenses ''TM5Doc)
@@ -128,6 +129,7 @@ instance FromJSON TM5Doc where
         <*> o .: "Transitions"
         <*> ((o .: "Special_states") >>= (.: "initial"))
         <*> ((o .: "Special_states") >>= (.: "finals"))
+        <*> ((o .: "Special_states") >>= (.: "template_finals"))
             where
                 seqOfTwo = withArray "Sequence of 2" $ \a ->
                     if V.length a /= 2
