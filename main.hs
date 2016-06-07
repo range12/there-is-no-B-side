@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Main where
 
 import qualified Data.Aeson           as Aeson
@@ -34,8 +35,8 @@ printTransitions ts
     | Map.size ts == 0 = return ()
     | otherwise        = do
         let tmp = Map.elemAt 0 ts
-        putStr $ fst tmp ++ ": "
-        print $ snd tmp
+        putStrLn $ fst tmp ++ ":"
+        mapM_ ((\x -> putStrLn $ "\t" ++ x) . show) $ snd tmp
         printTransitions $ Map.delete (fst tmp) ts
 
 computeHelper :: Maybe Transition -> Seq.Seq String -> (Int -> Int) -> Int -> (String, Seq.Seq String, Int -> Int)
@@ -62,11 +63,19 @@ putTape input current = let
             | otherwise = putStr (" " ++ sym) : result
     in sequence_ symbolsIOs
 
+showDirection :: (Int -> Int) -> String
+showDirection f
+    | f 0 == -1 = "←"
+    | f 0 == 1  = "→"
+    | otherwise = "ERROR"
+
 showResult :: Machine -> String -> Seq.Seq String -> Int -> IO ()
 showResult x currentState input i
     | currentState `elem` finals x = do putStrLn "The END"; print input
     | otherwise = do
-        putStrLn $ "Current state: " ++ currentState ++ ".   Index: " ++ show i
+        putStrLn $ "(" ++ currentState ++ ", " ++ input `Seq.index` i ++ ") => ("
+            ++ newState ++ ", " ++ newInput `Seq.index` i ++ ", "
+            ++ showDirection newDir ++ ")"
         putTape input i
         putStrLn ""
         showResult x newState newInput (if newDir i < 0 then -1 else newDir i)

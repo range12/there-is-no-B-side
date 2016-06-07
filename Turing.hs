@@ -17,7 +17,7 @@ string2ByteString = E.encodeUtf8 . L.pack
 data Transition = Transition { read :: String
                              , to_state :: String
                              , write :: String
-                             , action :: String } deriving (Show, Generic)
+                             , action :: String } deriving (Generic)
 
 instance FromJSON Transition where
     parseJSON (Object v) =
@@ -29,6 +29,9 @@ instance FromJSON Transition where
 
 instance ToJSON Transition
 
+instance Show Transition where
+    show t = read t ++ " => (" ++ to_state t ++ ", " ++ write t ++ ", "
+        ++ action t ++ ")"
 
 data Machine = Machine { name :: String
                        , alphabet :: [String]
