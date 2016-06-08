@@ -16,6 +16,8 @@ import Control.Lens
 import Data.IORef
 import System.IO.Unsafe
 
+import GenTM5Data
+
 
 skellFile = "tm5_skel.yml"
 outputFile = "TM5.json"
@@ -32,7 +34,7 @@ constructDoc = do
         getTags = view hostTags  . view alphabet
         getTapeSyms = view tapeActSyms . view alphabet
     alpha <- asks getAlpha
-    collec <- asks <$> [getRCP, getTags, getTapeSyms] >>= sequence >>= return . mconcat
+    collec <- asks <$> [getRCP, getTags, getTapeSyms] >>= sequence >>= return . concat
     if null alpha then
         let setAlpha = over alphabet . set freeSymbols
             in local (setAlpha defaultAlphabet) constructDoc
