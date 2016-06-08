@@ -3,7 +3,8 @@ module Main where
 import System.Environment
 import System.IO
 import System.Exit
-import qualified Data.ByteString as B
+import qualified Data.ByteString as B (readFile)
+import qualified Data.ByteString.Lazy as BL (writeFile)
 import Control.Applicative
 import qualified Data.Yaml as Y
 import Data.Aeson.Encode.Pretty
@@ -30,19 +31,21 @@ makeReciprocal = fmap (T.cons '~')
 constructDoc :: Reader TM5Doc TM5Doc
 constructDoc = do
     let getAlpha = view freeSymbols . view alphabet
-    let getRCP = view freeSymbolsRCP . view alphabet
+        getRCP = view freeSymbolsRCP . view alphabet
         getTags = view hostTags  . view alphabet
         getTapeSyms = view tapeActSyms . view alphabet
     alpha <- asks getAlpha
-    collec <- asks <$> [getRCP, getTags, getTapeSyms] >>= sequence >>= return . concat
+    rcp <- asks getRCP
+    collec <- return . concat . (<*>) [getRCP, getTags, getTapeSyms] . pure =<< ask
     if null alpha then
         let setAlpha = over alphabet . set freeSymbols
             in local (setAlpha defaultAlphabet) constructDoc
-    else do
+    else if null rcp then do
         let setRcp = over alphabet . set freeSymbolsRCP
-        let setCollection = over alphabet . set collection
-        let rcp = makeReciprocal alpha
-        ask >>= return . (setCollection collec$ setRcp rcp)
+            setCollection = over alphabet . set collection
+            rcp = makeReciprocal alpha
+            in ask >>= return . setCollection collec . setRcp rcp
+    else ask
 
 
 main = do
@@ -52,5 +55,5 @@ main = do
         Left err -> putStrLn err >> exitFailure
         Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
            >> print getDoc
-    B.writeFile outputFile $ encodePretty defConfig instantiateDoc
+    BL.writeFile outputFile $ encodePretty instantiateDoc
     putStrLn $ "Success ! File " ++ outputFile ++ " has been written."

@@ -13,6 +13,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
+import Data.Hashable (Hashable)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List as L
@@ -75,8 +76,8 @@ exitError s = unsafeDupablePerformIO $ hPutStrLn stderr s >> exitFailure >> retu
 myThrow :: a -> b
 myThrow _ = undefined
 
-lookupOrDie :: (?deathMessage :: ShowS, Show k) => k -> HashMap k v -> v
-lookupOrDie k = HM.lookupDefault (exitError $ ?deathMessage $ show k)
+lookupOrDie :: (?deathMessage :: ShowS, Show k, Hashable k, Eq k) => k -> HashMap k v -> v
+lookupOrDie key hm = HM.lookupDefault (exitError $ ?deathMessage $ show key) key hm
 
 getPlaceHolder = getDoc ^. P.templatePatterns ^. P.inheritedNth
 getRCPOf = getDoc ^. P.templatePatterns ^. P.reciprocal
@@ -92,10 +93,10 @@ makeState   :: StateInstance -- a template name and a list of concrete template 
             -> StateInstance -- the resulting concrete name and list of concrete params.
 makeState skelInstance =
     let (SI templName params) = skelInstance
-        bits = T.splitOn getPlaceHolder templName
+        bits = T.splitOn getPlaceHolder templName :: [Text]
       in case bits of
-          [single] -> return (SI single [])
-          _ ->  return $ SI (T.concat $ L.transpose $ [bits, params]) params
+          [single] -> SI single []
+          _ ->  SI (T.concat$ L.concat$ L.transpose$ [bits, params]) params
 
 
 -- UNUSED ATM.
@@ -156,10 +157,11 @@ gatherSyms :: [Text] -> State Env [Text]
 gatherSyms [] = return []
 gatherSyms (sym:ls) = do
     e@(Env pool params readEnt) <- get
-    let gotSyms = case sym of
-            getGlobFree ->  Set.fromList getFreeSyms
-            getGlobAny -> Set.fromList getAllSyms
-            sym ->  let isRCP = T.isInfixOf getRCPOf sym
+    let gotSyms =
+            case sym of
+             sym | sym == getGlobFree ->  Set.fromList getFreeSyms       -- Globbed...
+                 | sym == getGlobAny -> Set.fromList getAllSyms          -- ...categories.
+             _   -> let isRCP = T.isInfixOf getRCPOf sym                 -- Single static|template
                         rcpStripped = spliceOut getRCPOf sym 
                         in let resolve = resolveSelector isRCP rcpStripped
                            in Set.singleton$ runReader resolve e
@@ -174,12 +176,12 @@ gatherSyms (sym:ls) = do
         resolveSelector isRcp remainder = do
             readEnt <- asks readEntry
             params <- asks stateParams
-            let morphRcp = if isRcp then resolveRCP else id
+            let morphRcpM = return . if isRcp then resolveRCP else id
             case remainder of
-                getSameAsRead -> morphRcp getSameAsRead
-                remainder | not$ T.isInfixOf getPlaceHolder remainder ->
-                                 morphRcp$ paramFromSelector (params, remainder)
-                          | otherwise -> morphRcp remainder
+                 rem | rem == getSameAsRead -> morphRcpM getSameAsRead
+                     | not$ T.isInfixOf getPlaceHolder rem ->
+                            morphRcpM$ paramFromSelector (params, remainder)
+                     | otherwise -> morphRcpM rem
 
 
 
@@ -202,7 +204,7 @@ instantiateTrans ((is,os):lio) = do
         oConcreteSyms = concat$ resolveSyms [os] collection <$> iConcreteSyms
         pConcretePrms = resolveSyms tpms collection <$> iConcreteSyms
         cActs = if T.isInfixOf getPlaceHolder act
-            then \ps -> paramFromSelector (ps,act) <$> pConcretePrms
+            then (\ps -> paramFromSelector (ps,act)) <$> pConcretePrms
             else repeat act
         lsStates = makeState <$> SI skToSt <$> pConcretePrms
          in let serialCTrans = zipWith4 TM5CTrans
@@ -212,8 +214,8 @@ instantiateTrans ((is,os):lio) = do
                                         cActs
             in let cTrans = zipWith3 RCTrans
                                      serialCTrans
-                                     (paramsSI <$> lsStates)
                                      (repeat skToSt)
+                                     (paramsSI <$> lsStates)
                 in do
     put iRemPool
     return . (++) cTrans =<< instantiateTrans lio
@@ -225,25 +227,35 @@ instantiateTrans ((is,os):lio) = do
 --      comprehend template States
 --          makeTransition
 
+type WIPTransitions = HashMap Text [RichCTransition]
+
 makeTransitions :: StateInstance -- Previous concrete state, whence the transition is starting from.
                 -> [P.M5Transition] -- Associated template transitions
-                -> State (Set Text) -- Track consumed symbols as a State
-                    (HashMap Text [RichCTransition]) -- fold resulting concrete transitions.
-makeTransitions si@(SI parentState _) lSkellTr =
-    let foldingLRCTr = HM.insertWith (++) parentState
-        in flip . flip foldM$ HM.empty lSkellTr$ \accuHM ->
-                                                 \skellTr -> do
-            pool <- get
-            let iol = P.inputOutput ^. skellTr
-                in let (lRichTr,remPool) =
-                            flip runReader (si, skellTr)
-                            $ runStateT (instantiateTrans iol) pool
-                    in do
-            put remPool
-            return$ foldr foldingLRCTr accuHM ((:[]) <$> lRichTr)
+                -> State    (Set Text) -- Track consumed symbols as a State
+                            WIPTransitions -- fold resulting concrete transition maps.
+makeTransitions si@(SI parentState _) lSkellTr = foldM instantiateCondense HM.empty lSkellTr
+    where
+    instantiateCondense :: WIPTransitions
+                        -> P.M5Transition
+                        -> State (Set Text) WIPTransitions
+    instantiateCondense accuHM skellTr = do
+        pool <- get
+        let foldingLRCTrM hm v = return$ HM.insertWith (++) parentState v hm
+        let iol = P._inputOutput skellTr
+            in let (lRichTr,remPool) =
+                        flip runReader (si, skellTr)
+                        $ runStateT (instantiateTrans iol) pool
+                        :: ([RichCTransition], Set Text)
+                in do
+        put remPool
+        foldM foldingLRCTrM accuHM ((:[]) <$> lRichTr)
+
+
+
 
 
 type ConcreteTransitions = HashMap Text [TM5ConcreteTransition]
+
 dispatchInstantiation :: [(Text,[RichCTransition])]
                       -> ReaderT ConcreteTransitions
                          (State [Text])                    -- final states instances
@@ -255,21 +267,21 @@ dispatchInstantiation ((cState, lRCTr):ls) = do
       in lift (put moreFinals) >> local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
     where -----------------------------------------------------------------------------
         skellHM = getDoc ^. P.transitions
-        localUpdate = \hm -> HM.insertWith (++) cState lRCTr hm
+        localUpdate = \hm -> HM.insertWith (++) cState (cTransRCT <$> lRCTr) hm
         fetchSkTr el =
             let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
                 in lookupOrDie (skellNameRCT el) skellHM 
             where
                 skellKey = skellNameRCT el
 
-        stateFold :: HashMap Text [RichCTransition]
+        stateFold :: WIPTransitions
                      -> RichCTransition
-                     -> State [Text] ConcreteTransitions
+                     -> State [Text] WIPTransitions
         stateFold = \accHM -> \el -> do
             let skSt = skellNameRCT el
-            let callMkTrans = \si -> \lSkTr -> getAllSymsSet `evalState` makeTransitions si lSkTr
+            let callMkTrans = \si -> \lSkTr -> makeTransitions si lSkTr `evalState` getAllSymsSet
             let hmRich = callMkTrans (SI skSt$ paramsRCT el) (fetchSkTr el)
-            when (skSt `elem` view getDoc P.finalStates)$
+            when (skSt `elem` P._finalStates getDoc)$
                 get >>= put . (++ [cState])
             return$ HM.unionWith (++) accHM hmRich
     
@@ -291,12 +303,14 @@ instantiateDoc = do
         bootstrapInstance = HM.toList $ evalState 
             (makeTransitions (SI iniState []) (lookupOrDie iniState skellHM))
             getAllSymsSet
-        (cFinals, concreteTrans) = runState (runReaderT (reader id$ dispatchInstantiation bootstrapInstance) HM.empty) []
+        (concreteTrans, concreteFinals) =
+            ((dispatchInstantiation bootstrapInstance >> reader id) `runReaderT` HM.empty)
+            `runState` []
         in TM5
             "UniversalMachine"
             getAllSyms
             (alphaDoc ^. P.hostBlank)
             (HM.keys concreteTrans)
             iniState
-            cFinals
+            concreteFinals
             concreteTrans
