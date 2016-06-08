@@ -15,15 +15,15 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Sequence (Seq, (|>), (<|), (><))
-import qualified Data.Sequence as Sq
-import Control.Monad.Reader
 import Data.List as L
 import GenTM5Parser (getDoc)
 import qualified GenTM5Parser as P
 import Prelude hiding (read)
 import qualified Prelude as Pre (read)
 
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Reader
 
@@ -76,7 +76,7 @@ myThrow :: a -> b
 myThrow _ = undefined
 
 lookupOrDie :: (?deathMessage :: ShowS, Show k) => k -> HashMap k v -> v
-lookupOrDie = HM.lookupDefault (exitError $ ?deathMessage $ show k)
+lookupOrDie k = HM.lookupDefault (exitError $ ?deathMessage $ show k)
 
 getPlaceHolder = getDoc ^. P.templatePatterns ^. P.inheritedNth
 getRCPOf = getDoc ^. P.templatePatterns ^. P.reciprocal
@@ -129,7 +129,7 @@ indexFromSelector sel =
 -- -- May throw, provided a non-bare, non-freeSym symbol.
 resolveRCP :: Text -> Text
 resolveRCP t =  getRCPFree !! fromJust miRcp
-    where miRcp = elemIndex (params !! i) getFreeSyms
+    where miRcp = elemIndex t getFreeSyms
 
 -- From state instance params, a selector string: return the targeted parameter.
 -- A malformed selector,
@@ -174,10 +174,10 @@ gatherSyms (sym:ls) = do
         resolveSelector isRcp remainder = do
             readEnt <- asks readEntry
             params <- asks stateParams
-            let morphRcp = if isRcp then resolveRcp else id
+            let morphRcp = if isRcp then resolveRCP else id
             case remainder of
-                getSameAsRead -> morphRcp asRead
-                remainder | not$ T.isInfixOfn getPlaceHolder remainder ->
+                getSameAsRead -> morphRcp getSameAsRead
+                remainder | not$ T.isInfixOf getPlaceHolder remainder ->
                                  morphRcp$ paramFromSelector (params, remainder)
                           | otherwise -> morphRcp remainder
 
@@ -210,7 +210,7 @@ instantiateTrans ((is,os):lio) = do
                                         (nameSI <$> lsStates)
                                         oConcreteSyms
                                         cActs
-            in let cTrans = zipWith2 RCTrans
+            in let cTrans = zipWith3 RCTrans
                                      serialCTrans
                                      (paramsSI <$> lsStates)
                                      (repeat skToSt)
@@ -234,7 +234,7 @@ makeTransitions si@(SI parentState _) lSkellTr =
         in flip . flip foldM$ HM.empty lSkellTr$ \accuHM ->
                                                  \skellTr -> do
             pool <- get
-            let iol = inputOutput ^. skellTr
+            let iol = P.inputOutput ^. skellTr
                 in let (lRichTr,remPool) =
                             flip runReader (si, skellTr)
                             $ runStateT (instantiateTrans iol) pool
@@ -250,16 +250,15 @@ dispatchInstantiation :: [(Text,[RichCTransition])]
                          ()
 dispatchInstantiation [] = return ()
 dispatchInstantiation ((cState, lRCTr):ls) = do
-    let skellHM = getDoc ^. P.transitions
-        collec = getAllSymsSet
-        localUpdate = \hm -> HM.insertWith (++) cState cTr hm
     finalList <- lift get
-    let (laterTasks,moreFinals) = flip runState finalList$ return . HM.assocs =<< foldM stateFold HM.empty lRCTr
+    let (laterTasks,moreFinals) = flip runState finalList$ return . HM.toList =<< foldM stateFold HM.empty lRCTr
       in lift (put moreFinals) >> local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
     where -----------------------------------------------------------------------------
+        skellHM = getDoc ^. P.transitions
+        localUpdate = \hm -> HM.insertWith (++) cState lRCTr hm
         fetchSkTr el =
             let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
-                in lookUpOrDie (skellNameRCT el) skellHM 
+                in lookupOrDie (skellNameRCT el) skellHM 
             where
                 skellKey = skellNameRCT el
 
@@ -268,9 +267,9 @@ dispatchInstantiation ((cState, lRCTr):ls) = do
                      -> State [Text] ConcreteTransitions
         stateFold = \accHM -> \el -> do
             let skSt = skellNameRCT el
-            let callMkTrans = \si -> \lSkTr -> collec `evalState` makeTransitions si lSkTr
-            let hmRich = callMkTrans (SI skST$ paramsRCT el) (fetchSkTr el)
-            when (skSt `elem` skellFinals)$
+            let callMkTrans = \si -> \lSkTr -> getAllSymsSet `evalState` makeTransitions si lSkTr
+            let hmRich = callMkTrans (SI skSt$ paramsRCT el) (fetchSkTr el)
+            when (skSt `elem` view getDoc P.finalStates)$
                 get >>= put . (++ [cState])
             return$ HM.unionWith (++) accHM hmRich
     
@@ -289,14 +288,14 @@ instantiateDoc = do
         staticFinals = doc ^. P.finalStates
         skellHM = doc ^. P.transitions
         iniTrans = lookupOrDie iniState skellHM
-        bootstrapInstance = HM.assocs $ evalState 
+        bootstrapInstance = HM.toList $ evalState 
             (makeTransitions (SI iniState []) (lookupOrDie iniState skellHM))
             getAllSymsSet
         (cFinals, concreteTrans) = runState (runReaderT (reader id$ dispatchInstantiation bootstrapInstance) HM.empty) []
         in TM5
             "UniversalMachine"
             getAllSyms
-            (alphaDoc ^. P.blank)
+            (alphaDoc ^. P.hostBlank)
             (HM.keys concreteTrans)
             iniState
             cFinals

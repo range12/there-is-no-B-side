@@ -47,7 +47,7 @@ data GenTemplates = GenTp {
 $(makeLenses ''GenTemplates)
 
 data M5Transition = M5Trans {
-    _inputOuput :: [(Text, Text)]
+    _inputOutput :: [(Text, Text)]
     , _toStatePattern :: Text
     , _toStateParams :: [Text]
     , _tapeAction :: Text
@@ -60,7 +60,7 @@ data TM5Doc = TM5Doc {
     , _tapeActions :: (Text, Text)
     , _templatePatterns :: GenTemplates
     , _transitions :: HashMap Text [M5Transition]
-    , _intialState :: Text
+    , _initialState :: Text
     , _finalStates :: [Text]
     , _templateFinalStates :: [Text]
 } deriving (Show, Generic)
