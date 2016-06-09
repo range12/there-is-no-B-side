@@ -26,7 +26,7 @@ import qualified Prelude as Pre (read)
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans (lift)
-import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
 
 import Data.Maybe
@@ -53,7 +53,7 @@ data TM5ConcreteTransition = TM5CTrans {
     , to_state :: Text
     , write :: Text
     , action :: Text
-} deriving (Show)
+} deriving (Show,Eq)
 
 $(deriveJSON defaultOptions ''TM5ConcreteTransition)
 
@@ -74,7 +74,7 @@ data RichCTransition = RCTrans {
     cTransRCT :: TM5ConcreteTransition -- toJSON
     , skellNameRCT :: Text -- template name, i.e. HM key to children template trans.
     , paramsRCT :: [Text] -- resolved params for this trans., used by children
-} deriving Show
+} deriving (Show,Eq)
 
 data StateInstance = SI {
     nameSI :: Text
@@ -95,8 +95,8 @@ getGlobAny = getDoc ^. P.alphabet ^. P.globAnyInput
 getGlobFree = getDoc ^. P.alphabet ^. P.globFreeSymbols
 getFreeSyms = getDoc ^. P.alphabet ^. P.freeSymbols
 getRCPFree = getDoc ^. P.alphabet ^. P.freeSymbolsRCP
-getAllSyms = getDoc ^. P.alphabet ^. P.collection
-getAllSymsSet = Set.fromList getAllSyms 
+getCollection = getDoc ^. P.alphabet ^. P.collection
+getExhaustiveSet = Set.fromList$ getCollection ++ getRCPFree
 
 
 
@@ -136,8 +136,9 @@ indexFromSelector sel =
 resolveRCP :: (?dbgInfo :: String) => Text -> Text
 resolveRCP t =
     let ?dbgInfo = ?dbgInfo ++ "; resolveRCP"
-        in getRCPFree !! justOrDie miRcp
-    where miRcp = elemIndex t getFreeSyms
+        in case elemIndex t getFreeSyms of
+                Just i -> getRCPFree !! i
+                Nothing -> getFreeSyms !! justOrDie (elemIndex t getRCPFree)
 
 -- From state instance params, a selector string: return the targeted parameter.
 -- A malformed selector,
@@ -168,7 +169,7 @@ gatherSyms (sym:ls) = do
     let gotSyms =
             case sym of
              sym | sym == getGlobFree ->  Set.fromList getFreeSyms       -- Globbed...
-                 | sym == getGlobAny -> Set.fromList getAllSyms          -- ...categories.
+                 | sym == getGlobAny -> Set.fromList getCollection          -- ...categories.
              _   -> let isRCP = T.isInfixOf getRCPOf sym                 -- Single static|template
                         rcpStripped = spliceOut getRCPOf sym 
                         in let resolve = let ?dbgInfo = "sym:" ++ T.unpack sym in resolveSelector isRCP rcpStripped
@@ -184,16 +185,18 @@ gatherSyms (sym:ls) = do
         resolveSelector isRcp remainder = do
             readEnt <- asks readEntry
             params <- asks stateParams
-            let morphRcpM = return . if isRcp
+            let morphRcpM dbg t = return $ if isRcp
                 then
-                    let ?dbgInfo = ?dbgInfo ++ "->gatherSyms:RCP: " ++ T.unpack remainder in resolveRCP
-                else id
+                    let ?dbgInfo = ?dbgInfo ++ dbg++ "->gatherSyms:RCP: [" ++ T.unpack t ++ "]" in resolveRCP t
+                else id t
+                in do
             case remainder of
-                 rem | rem == getSameAsRead -> morphRcpM readEnt
+                 rem 
                      | T.isInfixOf getPlaceHolder rem ->
-                            let ?dbgInfo = printf "gatherSyms:Straight: %s" (T.unpack rem)
-                                in morphRcpM$ paramFromSelector (params, remainder)
-                     | otherwise -> morphRcpM rem
+                            let dbgInfo = printf "gatherSyms:Straight: %s" (T.unpack rem)
+                                in morphRcpM dbgInfo$ paramFromSelector (params, remainder)
+                     | T.isInfixOf getSameAsRead rem -> let dbgInfo = printf "READPATTERN: readEnt: %s, rem: %s" (T.unpack readEnt) (T.unpack rem) in morphRcpM dbgInfo readEnt
+                     | otherwise -> let dbgInfo = "I AM OTHERWISE" in morphRcpM dbgInfo rem
 
 
 
@@ -205,14 +208,14 @@ instantiateTrans   :: [(Text, Text)]                           -- Template IO co
                                [RichCTransition]                -- Resulting concrete transitions
 instantiateTrans [] = return []
 instantiateTrans ((is,os):lio) = do
-    (curSt@(SI _ concreteParams)
+    (curSt@(SI parentState concreteParams)
         , P.M5Trans _ skToSt tpms act)  <- lift ask
     symPool <- get
     let (iConcreteSyms, Env iRemPool _ _) = runState (gatherSyms [is])
                                                      (Env symPool concreteParams is)
     let resolveSyms = \el poo rs -> evalState (gatherSyms el)
                                               (Env poo concreteParams rs)
-        collection = getAllSymsSet
+        collection = getExhaustiveSet
         oConcreteSyms = concat$ resolveSyms [os] collection <$> iConcreteSyms
         pConcretePrms = resolveSyms tpms collection <$> iConcreteSyms
         cActs = if T.isInfixOf getPlaceHolder act
@@ -231,7 +234,8 @@ instantiateTrans ((is,os):lio) = do
                 in do
 --    return $ seq (wildShow curSt) ()
     put iRemPool
-    return . (++) cTrans =<< instantiateTrans lio
+    instantiateTrans lio
+    >>= return . (++) (filter (\tr -> to_state (cTransRCT tr) /= parentState) cTrans)
 
 
 -- ForEach I:O couple
@@ -273,39 +277,91 @@ makeTransitions si@(SI parentState pParams) lSkellTr = foldM instantiateCondense
 type ConcreteTransitions = HashMap Text [TM5ConcreteTransition]
 
 dispatchInstantiation :: [(Text,[RichCTransition])]
-                      -> ReaderT ConcreteTransitions
-                         (State [Text])                    -- final states instances
-                         ()
-dispatchInstantiation [] = return ()
+                      -> StateT WIPTransitions
+                         (State (Set Text))                    -- final states instances
+                         ConcreteTransitions
+dispatchInstantiation [] = return . HM.map (\lrct -> cTransRCT <$> lrct) =<< get
 dispatchInstantiation ((cState, lRCTr):ls) = do
-    finalList <- lift get
-    let (laterTasks,moreFinals) = flip runState finalList$ return . HM.toList =<< foldM stateFold HM.empty lRCTr
-      in lift (put moreFinals) >> local localUpdate (dispatchInstantiation$ ls ++ laterTasks)
+    moreTasks <- mapM stateFold lRCTr >>= return . concat
+    dispatchInstantiation (ls ++ moreTasks)
     where -----------------------------------------------------------------------------
         skellHM = getDoc ^. P.transitions
-        localUpdate = \hm -> HM.insertWith (++) cState (cTransRCT <$> lRCTr) hm
         fetchSkTr el =
             let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
                 in lookupOrDie skellKey skellHM 
             where
                 skellKey = skellNameRCT el
 
-        stateFold :: WIPTransitions
-                     -> RichCTransition
-                     -> State [Text] WIPTransitions
-        stateFold = \accHM -> \el -> do
+        stateFold :: RichCTransition
+                  -> StateT WIPTransitions (State (Set Text)) [(Text,[RichCTransition])]
+        stateFold = \el -> do
             let skSt = skellNameRCT el
-            let callMkTrans = \si -> \lSkTr -> makeTransitions si lSkTr `evalState` getAllSymsSet
+            let callMkTrans = \si -> \lSkTr -> makeTransitions si lSkTr `evalState` getExhaustiveSet
             let hmRich = callMkTrans (SI cState$ paramsRCT el) (fetchSkTr el)
             when (skSt `elem` P._finalStates getDoc)$
-                get >>= put . (++ [cState])
-            return$ HM.unionWith (++) accHM hmRich
+                lift$ modify (Set.insert skSt)
+            modify (HM.unionWith (\l r -> union (nub l) r) hmRich)
+            return$ HM.toList hmRich
+
+
+
+
+data LocalEnv = LEnv {
+    _curCState :: Text
+    , _curCParams :: [Text]
+    , _curSkellState :: Text
+    , _curRead :: Text
+    , _usedSyms :: [Text]
+    , _transSyms :: [Text]
+}
+$(makeLenses ''LocalEnv)
+
+data MetaEnv = MEnv {
+    _finals :: Set Text
+    , _wipTrans :: WIPTransitions
+}
+$(makeLenses ''MetaEnv)
+
+
+
+resolveTemplateSym :: Text
+                   -> Reader LocalEnv
+                      [Text]
+resolveTemplateSym tSym = do
+    used <- asks _usedSyms
+    readEnt <- asks _curRead
+    let inter l = (used \\ getExhaustiveSet) `intersection` l
+    return$ case tSym of
+        getGlobAny -> inter getCollection
+        getGlobFree -> inter getFreeSyms
+        _ 
+          | T.isInfixOf getPlaceHolder tSym -> inter$ paramFromSelector tSym : []
+          | case T.breakOn getSameAsRead tSym ->
+                (a,b)| not$ T.null b -> inter$ resolveStatic (T.concat a readEnt) : []
+                     | otherwise -> inter$ resolveStatic a : []
+    where
+        resolveStatic sym = if T.isInfixOf getRCPOf sym then resolveRCP sym else sym
+
+
+-- depth first...
+rebootMakeTrans :: StateT MetaEnv
+                   (Reader LocalEnv)
+                   ()
+rebootMakeTrans = do
+    
     
 
+
+-- ((Initialization))
 -- ForEach starting state template
 --      ForEach (R,W)
---          encode (R,W) transition
---              <=> instantiate . encode $ nextState
+--          log . instantiate: templateTrans -> (curState,R,W,params) -> WipConcreteTransition
+-- ((Recursion))
+-- given WipConcreteTransitions :
+-- ForEach concrete state
+--      ForEach (curState,R,W,params,toTemplate)
+--          if instantiate (toTemplate,r,w,params) NotMemberOf (log:)WipConcreteTransitions:
+--              log . instantiate: templateTrans -> (curState,R,W,params) -> WipConcreteTransition
 
 instantiateDoc :: TM5Machine
 instantiateDoc =
@@ -313,22 +369,22 @@ instantiateDoc =
         doc = getDoc
         alphaDoc = doc ^. P.alphabet
         iniState = doc ^. P.initialState
-        staticFinals = doc ^. P.finalStates
+        staticFinals = Set.fromList$ doc ^. P.finalStates
         skellHM = doc ^. P.transitions
         iniTrans = let ?deathMessage = dm in lookupOrDie iniState skellHM
         --bootstrapInstance = HM.map (\lrct -> cTransRCT<$>lrct)$ evalState 
-        bootstrapInstance = HM.toList $ evalState 
+        bootstrapInstance = evalState 
             (makeTransitions (SI iniState []) iniTrans)
-            getAllSymsSet
+            getExhaustiveSet
         (concreteTrans, concreteFinals) =
 --            (,) bootstrapInstance []
-              ((dispatchInstantiation bootstrapInstance >> reader id) `runReaderT` HM.empty)
-              `runState` []
+              ((dispatchInstantiation$ HM.toList bootstrapInstance) `evalStateT` bootstrapInstance)
+              `runState` staticFinals
         in TM5
             "UniversalMachine"
-            getAllSyms
+            (getCollection ++ getRCPFree)
             (alphaDoc ^. P.hostBlank)
             (HM.keys concreteTrans)
             iniState
-            concreteFinals
+            (Set.toList concreteFinals)
             concreteTrans
