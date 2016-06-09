@@ -274,6 +274,9 @@ Transitions:
           params: []
           action: *right
 
+    error: []
+
+    "final_%%": []
 
 
 Special_states:

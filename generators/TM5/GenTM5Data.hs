@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE CPP #-}
 
 module GenTM5Data (
     instantiateDoc
@@ -35,7 +36,17 @@ import System.Exit (exitFailure)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 import System.IO (hPutStrLn, stderr)
 
+import Text.Printf
+
 import Control.Lens
+
+-- DBG --
+import System.IO.Unsafe
+
+wildShow :: (Show a) => a -> a
+wildShow showMe = unsafePerformIO $ print showMe >> return showMe
+
+-- DBG -- 
 
 data TM5ConcreteTransition = TM5CTrans {
     read :: Text
@@ -73,15 +84,13 @@ data StateInstance = SI {
 exitError :: String -> a
 exitError s = unsafeDupablePerformIO $ hPutStrLn stderr s >> exitFailure >> return undefined
 
-myThrow :: a -> b
-myThrow _ = undefined
-
 lookupOrDie :: (?deathMessage :: ShowS, Show k, Hashable k, Eq k) => k -> HashMap k v -> v
 lookupOrDie key hm = HM.lookupDefault (exitError $ ?deathMessage $ show key) key hm
 
 getPlaceHolder = getDoc ^. P.templatePatterns ^. P.inheritedNth
 getRCPOf = getDoc ^. P.templatePatterns ^. P.reciprocal
 getSameAsRead = getDoc ^. P.templatePatterns ^. P.readPat
+getSameAsState = getDoc ^. P.templatePatterns ^. P.currentState
 getGlobAny = getDoc ^. P.alphabet ^. P.globAnyInput
 getGlobFree = getDoc ^. P.alphabet ^. P.globFreeSymbols
 getFreeSyms = getDoc ^. P.alphabet ^. P.freeSymbols
@@ -89,26 +98,21 @@ getRCPFree = getDoc ^. P.alphabet ^. P.freeSymbolsRCP
 getAllSyms = getDoc ^. P.alphabet ^. P.collection
 getAllSymsSet = Set.fromList getAllSyms 
 
-makeState   :: StateInstance -- a template name and a list of concrete template params.
-            -> StateInstance -- the resulting concrete name and list of concrete params.
-makeState skelInstance =
-    let (SI templName params) = skelInstance
-        bits = T.splitOn getPlaceHolder templName :: [Text]
-      in case bits of
+
+
+makeState  :: StateInstance -- The current concrete state and its params (for recursive transitions)
+           -> StateInstance  -- The a template state to instantiate with concrete params.
+           -> StateInstance -- the resulting concrete name and list of concrete params.
+makeState currentState (SI templName params) =
+    if templName == getSameAsState then currentState else
+    let  bits = T.splitOn getPlaceHolder templName :: [Text]
+         in case bits of
           [single] -> SI single []
           _ ->  SI (T.concat$ L.concat$ L.transpose$ [bits, params]) params
 
-
--- UNUSED ATM.
--- -- The caller manages the symbol collection: for each transition, drop given symbols.
--- -- Caller passes its !!specially ordered!! resolved params to prepend on comprehension.
--- comprehendStates :: StateInstance -> [Text] -> [StateInstance]
--- comprehendStates sk [] = sk
--- comprehendStates (SI tName existingParams) collection =
---     let construct = \p -> SI tName (existingParams ++ [p])
---       in runMakeState = makeState . construct
---         in [runMakeState param | param <- collection]
-
+#define CALLJUSTORDIE(tailInfo, param) (let ?dbgInfo = ?dbgInfo ++ tailInfo in justOrDie param)
+justOrDie :: (?dbgInfo :: String) => Maybe a -> a
+justOrDie = fromMaybe (let ?dbgInfo = "justOrDie: DYING -> " ++ ?dbgInfo in exitError ?dbgInfo)
 
 -- Takes a selector
 -- The selector can be either (rcp to Nth sym) "~~%%N" or "%%N" (Nth sym)
@@ -116,11 +120,12 @@ makeState skelInstance =
 --  as either Left iRcp or Right i.
 -- Non-selector or malformed selector will raise a deadly exception
 --  through the use of fromJust.
-indexFromSelector :: Text -> Either Int Int
+indexFromSelector :: (?dbgInfo :: String) => Text -> Either Int Int
 indexFromSelector sel =
     let stripRcp = T.stripPrefix getRCPOf sel
+--        ?dbgInfo = ?dbgInfo ++ "; indexFromSelector"
         doRead = (Pre.read :: String -> Int)
-            . T.unpack . fromJust
+            . T.unpack . CALLJUSTORDIE("; indexFromSelector",)
             . (T.stripPrefix getPlaceHolder)
         in case stripRcp of
             Just t -> Left$ doRead t 
@@ -128,8 +133,10 @@ indexFromSelector sel =
 
 -- Provided a bare, litteral sym from the `freeSyms` set
 -- -- May throw, provided a non-bare, non-freeSym symbol.
-resolveRCP :: Text -> Text
-resolveRCP t =  getRCPFree !! fromJust miRcp
+resolveRCP :: (?dbgInfo :: String) => Text -> Text
+resolveRCP t =
+    let ?dbgInfo = ?dbgInfo ++ "; resolveRCP"
+        in getRCPFree !! justOrDie miRcp
     where miRcp = elemIndex t getFreeSyms
 
 -- From state instance params, a selector string: return the targeted parameter.
@@ -137,8 +144,9 @@ resolveRCP t =  getRCPFree !! fromJust miRcp
 -- An improper (OOB index) selector,
 -- A bad freeSyms <=> RCP mapping
 --      will raise a deadly exception.
-paramFromSelector :: ([Text], Text) -> Text
+paramFromSelector :: (?dbgInfo :: String) => ([Text], Text) -> Text
 paramFromSelector (params, sel) = 
+    let ?dbgInfo = ?dbgInfo ++ "; paramFromSelector" in
     case indexFromSelector sel of
         Right i -> params !! i
         Left i -> resolveRCP (params !! i)
@@ -163,7 +171,7 @@ gatherSyms (sym:ls) = do
                  | sym == getGlobAny -> Set.fromList getAllSyms          -- ...categories.
              _   -> let isRCP = T.isInfixOf getRCPOf sym                 -- Single static|template
                         rcpStripped = spliceOut getRCPOf sym 
-                        in let resolve = resolveSelector isRCP rcpStripped
+                        in let resolve = let ?dbgInfo = "sym:" ++ T.unpack sym in resolveSelector isRCP rcpStripped
                            in Set.singleton$ runReader resolve e
     let pool' = \uSyms -> pool `Set.difference` uSyms
         in let updateEnv uSyms (Env lp pms r) = Env (pool' uSyms) pms r
@@ -172,15 +180,19 @@ gatherSyms (sym:ls) = do
         in  return . (++) gathered =<< gatherSyms ls
     where -- -- -- -- -- -- -- Helpers -- -- -- -- -- -- --
         spliceOut exon txt = T.concat$ T.splitOn exon txt
-        resolveSelector :: Bool -> Text -> Reader Env Text
+        resolveSelector :: (?dbgInfo :: String) => Bool -> Text -> Reader Env Text
         resolveSelector isRcp remainder = do
             readEnt <- asks readEntry
             params <- asks stateParams
-            let morphRcpM = return . if isRcp then resolveRCP else id
+            let morphRcpM = return . if isRcp
+                then
+                    let ?dbgInfo = ?dbgInfo ++ "->gatherSyms:RCP: " ++ T.unpack remainder in resolveRCP
+                else id
             case remainder of
-                 rem | rem == getSameAsRead -> morphRcpM getSameAsRead
-                     | not$ T.isInfixOf getPlaceHolder rem ->
-                            morphRcpM$ paramFromSelector (params, remainder)
+                 rem | rem == getSameAsRead -> morphRcpM readEnt
+                     | T.isInfixOf getPlaceHolder rem ->
+                            let ?dbgInfo = printf "gatherSyms:Straight: %s" (T.unpack rem)
+                                in morphRcpM$ paramFromSelector (params, remainder)
                      | otherwise -> morphRcpM rem
 
 
@@ -193,7 +205,7 @@ instantiateTrans   :: [(Text, Text)]                           -- Template IO co
                                [RichCTransition]                -- Resulting concrete transitions
 instantiateTrans [] = return []
 instantiateTrans ((is,os):lio) = do
-    (SI _ concreteParams
+    (curSt@(SI _ concreteParams)
         , P.M5Trans _ skToSt tpms act)  <- lift ask
     symPool <- get
     let (iConcreteSyms, Env iRemPool _ _) = runState (gatherSyms [is])
@@ -204,9 +216,9 @@ instantiateTrans ((is,os):lio) = do
         oConcreteSyms = concat$ resolveSyms [os] collection <$> iConcreteSyms
         pConcretePrms = resolveSyms tpms collection <$> iConcreteSyms
         cActs = if T.isInfixOf getPlaceHolder act
-            then (\ps -> paramFromSelector (ps,act)) <$> pConcretePrms
+            then (\ps -> let ?dbgInfo = "instantiateTrans" in paramFromSelector (ps,act)) <$> pConcretePrms
             else repeat act
-        lsStates = makeState <$> SI skToSt <$> pConcretePrms
+        lsStates = makeState curSt <$> SI skToSt <$> pConcretePrms
          in let serialCTrans = zipWith4 TM5CTrans
                                         iConcreteSyms
                                         (nameSI <$> lsStates)
@@ -217,6 +229,7 @@ instantiateTrans ((is,os):lio) = do
                                      (repeat skToSt)
                                      (paramsSI <$> lsStates)
                 in do
+--    return $ seq (wildShow curSt) ()
     put iRemPool
     return . (++) cTrans =<< instantiateTrans lio
 
@@ -233,17 +246,20 @@ makeTransitions :: StateInstance -- Previous concrete state, whence the transiti
                 -> [P.M5Transition] -- Associated template transitions
                 -> State    (Set Text) -- Track consumed symbols as a State
                             WIPTransitions -- fold resulting concrete transition maps.
-makeTransitions si@(SI parentState _) lSkellTr = foldM instantiateCondense HM.empty lSkellTr
+makeTransitions si@(SI parentState pParams) lSkellTr = foldM instantiateCondense HM.empty lSkellTr
     where
     instantiateCondense :: WIPTransitions
                         -> P.M5Transition
                         -> State (Set Text) WIPTransitions
     instantiateCondense accuHM skellTr = do
         pool <- get
-        let foldingLRCTrM hm v = return$ HM.insertWith (++) parentState v hm
-        let iol = P._inputOutput skellTr
+        let foldingLRCTrM hm v = return$ HM.insertWith (flip (++)) parentState v hm
+        let saneSkellTr = if skellTr ^. P.toStatePattern == getSameAsState
+                    then set P.toStatePattern parentState . set P.toStateParams pParams$ skellTr
+                    else skellTr
+        let iol = P._inputOutput saneSkellTr
             in let (lRichTr,remPool) =
-                        flip runReader (si, skellTr)
+                        flip runReader (si, saneSkellTr)
                         $ runStateT (instantiateTrans iol) pool
                         :: ([RichCTransition], Set Text)
                 in do
@@ -270,7 +286,7 @@ dispatchInstantiation ((cState, lRCTr):ls) = do
         localUpdate = \hm -> HM.insertWith (++) cState (cTransRCT <$> lRCTr) hm
         fetchSkTr el =
             let ?deathMessage = (++) "dispatchInstantiation: could not find state: "
-                in lookupOrDie (skellNameRCT el) skellHM 
+                in lookupOrDie skellKey skellHM 
             where
                 skellKey = skellNameRCT el
 
@@ -280,7 +296,7 @@ dispatchInstantiation ((cState, lRCTr):ls) = do
         stateFold = \accHM -> \el -> do
             let skSt = skellNameRCT el
             let callMkTrans = \si -> \lSkTr -> makeTransitions si lSkTr `evalState` getAllSymsSet
-            let hmRich = callMkTrans (SI skSt$ paramsRCT el) (fetchSkTr el)
+            let hmRich = callMkTrans (SI cState$ paramsRCT el) (fetchSkTr el)
             when (skSt `elem` P._finalStates getDoc)$
                 get >>= put . (++ [cState])
             return$ HM.unionWith (++) accHM hmRich
@@ -292,20 +308,22 @@ dispatchInstantiation ((cState, lRCTr):ls) = do
 --              <=> instantiate . encode $ nextState
 
 instantiateDoc :: TM5Machine
-instantiateDoc = do
-    let ?deathMessage = (++) "instantiateDoc: could not find state: "
-    let doc = getDoc
+instantiateDoc =
+    let dm = (++) "instantiateDoc: could not find state: "
+        doc = getDoc
         alphaDoc = doc ^. P.alphabet
         iniState = doc ^. P.initialState
         staticFinals = doc ^. P.finalStates
         skellHM = doc ^. P.transitions
-        iniTrans = lookupOrDie iniState skellHM
+        iniTrans = let ?deathMessage = dm in lookupOrDie iniState skellHM
+        --bootstrapInstance = HM.map (\lrct -> cTransRCT<$>lrct)$ evalState 
         bootstrapInstance = HM.toList $ evalState 
-            (makeTransitions (SI iniState []) (lookupOrDie iniState skellHM))
+            (makeTransitions (SI iniState []) iniTrans)
             getAllSymsSet
         (concreteTrans, concreteFinals) =
-            ((dispatchInstantiation bootstrapInstance >> reader id) `runReaderT` HM.empty)
-            `runState` []
+--            (,) bootstrapInstance []
+              ((dispatchInstantiation bootstrapInstance >> reader id) `runReaderT` HM.empty)
+              `runState` []
         in TM5
             "UniversalMachine"
             getAllSyms

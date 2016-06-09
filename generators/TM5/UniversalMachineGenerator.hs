@@ -1,10 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import System.Environment
 import System.IO
 import System.Exit
 import qualified Data.ByteString as B (readFile)
-import qualified Data.ByteString.Lazy as BL (writeFile)
+import qualified Data.ByteString.Lazy as BL (writeFile, append)
 import Control.Applicative
 import qualified Data.Yaml as Y
 import Data.Aeson.Encode.Pretty
@@ -34,18 +36,22 @@ constructDoc = do
         getRCP = view freeSymbolsRCP . view alphabet
         getTags = view hostTags  . view alphabet
         getTapeSyms = view tapeActSyms . view alphabet
+        setRcp = over alphabet . set freeSymbolsRCP
+        setCollection = over alphabet . set collection
     alpha <- asks getAlpha
     rcp <- asks getRCP
-    collec <- return . concat . (<*>) [getRCP, getTags, getTapeSyms] . pure =<< ask
+    doc <- ask
     if null alpha then
         let setAlpha = over alphabet . set freeSymbols
             in local (setAlpha defaultAlphabet) constructDoc
-    else if null rcp then do
-        let setRcp = over alphabet . set freeSymbolsRCP
-            setCollection = over alphabet . set collection
-            rcp = makeReciprocal alpha
-            in ask >>= return . setCollection collec . setRcp rcp
-    else ask
+    else do
+    let gatherers = [getTags, getTapeSyms, getAlpha, getRCP]
+        collec = \apRcp -> concat (gatherers <*> pure doc) ++ apRcp
+        setterM = return . if null rcp
+        then let genRCP = makeReciprocal alpha
+                 in setCollection (collec genRCP) . setRcp genRCP
+        else setCollection (collec [])
+        in ask >>= setterM
 
 
 main = do
@@ -54,6 +60,5 @@ main = do
     case eitherTm5 of
         Left err -> putStrLn err >> exitFailure
         Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
-           >> print getDoc
-    BL.writeFile outputFile $ encodePretty instantiateDoc
+    BL.writeFile outputFile (encodePretty instantiateDoc `BL.append` "\n")
     putStrLn $ "Success ! File " ++ outputFile ++ " has been written."
