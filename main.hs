@@ -6,7 +6,8 @@ import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.List            as List
 import qualified Data.Map.Strict      as Map
 import qualified Data.Sequence        as Seq
-import           System.Environment
+import           System.Environment   (getArgs)
+import           System.Exit          (die)
 import           Turing
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
@@ -40,7 +41,7 @@ printTransitions ts
         printTransitions $ Map.delete (fst tmp) ts
 
 computeHelper :: Maybe Transition -> Seq.Seq String -> (Int -> Int) -> Int -> (String, Seq.Seq String, Int -> Int)
-computeHelper Nothing _ f _  = ("", Seq.empty, f)
+computeHelper Nothing _ f _      = ("", Seq.empty, f)
 computeHelper (Just t) input f i = (to_state t, Seq.update i (write t) input, f)
 
 -- transitions -> current state -> input -> index
@@ -51,7 +52,7 @@ compute tsMap state input i = computeHelper goodTrans input dir i where
     goodTrans = List.find (\x -> Turing.read x == currentSymbol) ts -- returns THE Transition
     dir = case goodTrans of
         Just y -> if action y == "RIGHT" then (+) 1 else (\x -> x - 1)
-        Nothing -> (-) 99999999
+        Nothing -> const 99999999
 
 putTape :: Seq.Seq String -> Int -> IO ()
 putTape input current = let
@@ -70,24 +71,24 @@ showDirection f
     | otherwise = "ERROR"
 
 showResult :: Machine -> String -> Seq.Seq String -> Int -> IO ()
-showResult x currentState input i
-    | currentState `elem` finals x = do putStrLn "The END"; print input
-    | otherwise = do
+showResult m currentState input i
+    | currentState `elem` finals m = do putStrLn "The END"; print input
+    | Seq.length newInput > 0 = do
         putStrLn $ "(" ++ currentState ++ ", " ++ input `Seq.index` i ++ ") => ("
             ++ newState ++ ", " ++ newInput `Seq.index` i ++ ", "
-            ++ showDirection newDir ++ ")"
+            ++ showDirection newDir ++ ")  Index: " ++ show i
         putTape input i
         putStrLn ""
-        showResult x newState newInput (if newDir i < 0 then -1 else newDir i)
+        showResult m newState newInput (if newDir i < 0 then -1 else newDir i)
+    | otherwise = die "Error: Transition not found."
     where
         computed
-            | i == -1 = compute (transitions x) currentState (blank x Seq.<| input) 0
-            | i <= Seq.length input - 1 = compute (transitions x) currentState input i
-            |otherwise = compute (transitions x) currentState (input Seq.|> blank x) i
+            | i == -1 = compute (transitions m) currentState (blank m Seq.<| input) 0
+            | i <= Seq.length input - 1 = compute (transitions m) currentState input i
+            | otherwise = compute (transitions m) currentState (input Seq.|> blank m) i
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
         newDir = case computed of (_, _, op) -> op
-
 
 showMachine :: Machine -> IO ()
 showMachine x = do
