@@ -40,6 +40,41 @@ main = do
     putStrLn $ showComplexity pOn_3
 
 
+    let i1 = 1350
+    let pOnLogn_1 = (1000, round (1000 *  i1 * log i1))
+    let i2 = 800
+    let pOnLogn_2 = (1000, round (1000 * i2 * log i2))
+    let pOnLogn_3 = (1000, round (1000 ** 2 * log 1000))
+    putStrLn $ "\nO(nLog(n)) test with Q ~= M=(1.3N) MLog(M) * N : " ++ show pOnLogn_1
+    putStrLn $ showComplexity pOnLogn_1
+    putStrLn $ "\nO(nLog(n)) test with Q ~= M=(0.8N) MLog(M) * N : " ++ show pOnLogn_2
+    putStrLn $ showComplexity pOnLogn_2
+    putStrLn $ "\nO(nLog(n)) test with Q ~= NLog(N) * N : " ++ show pOnLogn_3
+    putStrLn $ showComplexity pOnLogn_3
+
+
+    let pOnn_1 = (1000, round (1000 *  1350 ** 2))
+    let pOnn_2 = (1000, round (1000 * 800 ** 2))
+    let pOnn_3 = (1000, round (1000 ** 3))
+    putStrLn $ "\nO(n^2) test with Q ~= (1.3N)^2 * N : " ++ show pOnn_1
+    putStrLn $ showComplexity pOnn_1
+    putStrLn $ "\nO(n^2) test with Q ~= (0.8N)^2 * N : " ++ show pOnn_2
+    putStrLn $ showComplexity pOnn_2
+    putStrLn $ "\nO(n^2) test with Q ~= N^2 * N : " ++ show pOnn_3
+    putStrLn $ showComplexity pOnn_3
+
+
+
+    let pO2Pn_1 = (50, round (50 *  2 ** 67))
+    let pO2Pn_2 = (50, round (50 * 2 ** 40))
+    let pO2Pn_3 = (50, round (50 * 2 ** 50))
+    putStrLn $ "\nO(2^n) test with Q ~= 2^(1.3N) * N : " ++ show pO2Pn_1
+    putStrLn $ showComplexity pO2Pn_1
+    putStrLn $ "\nO(2^n) test with Q ~= 2^(0.8N) * N : " ++ show pO2Pn_2
+    putStrLn $ showComplexity pO2Pn_2
+    putStrLn $ "\nO(2^n) test with Q ~= 2^N * N : " ++ show pO2Pn_3
+    putStrLn $ showComplexity pO2Pn_3
+
 
     let pOfn_1 = (20, round (20 *  fac 16))
     let pOfn_2 = (20, round (20 * fac 24))

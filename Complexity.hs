@@ -8,6 +8,13 @@ fac :: (Num a, Eq a, Enum a) => a -> a
 fac 0 = 1
 fac n = foldl' (*) 1 [1..n]
 
+-- Takes a couple of integers : 
+-- be N: the size of the input, in symbols
+-- be Q: the number of operations upon successfully terminating a computation.
+-- Computes a prospective value Q' for each time complexity profile;
+-- Computes the Q/Q' ratio;
+-- Elects the complexity profile whose ratio is the closest to 1.0.
+
 showComplexity :: (Integral a, Integral b) => (a,b) -> String
 showComplexity p =
     let inputSize = fromIntegral (fst p) :: Double -- doc as N
