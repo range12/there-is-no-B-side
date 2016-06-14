@@ -8,7 +8,6 @@
 
     "transitions": {
     	"A": [
-    		{ "read" : ".", "to_state" : "A", "write" : ".", "action" : "RIGHT" },
     		{ "read" : "1", "to_state" : "A", "write" : "1", "action" : "RIGHT" },
     		{ "read" : "+", "to_state" : "B", "write" : "+", "action" : "RIGHT" }
     	],

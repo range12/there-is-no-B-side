@@ -9,6 +9,7 @@ import qualified Data.Sequence        as Seq
 import           System.Environment   (getArgs)
 import           System.Exit          (die)
 import           Turing
+import Complexity
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
 legitElements [] _ tokens = tokens
@@ -70,16 +71,19 @@ showDirection f
     | f 0 == 1  = "→"
     | otherwise = "ERROR"
 
-showResult :: Machine -> String -> Seq.Seq String -> Int -> IO ()
-showResult m currentState input i
-    | currentState `elem` finals m = do putStrLn "The END"; print input
+showResult :: Machine -> String -> Seq.Seq String -> Int -> Int -> Int -> IO ()
+showResult m currentState input inputSize i stepNb
+    | currentState `elem` finals m = do
+        putStrLn "The END"
+        print input
+        putStrLn $ "\n" ++ showComplexity (inputSize, stepNb)
     | Seq.length newInput > 0 = do
         putStrLn $ "(" ++ currentState ++ ", " ++ input `Seq.index` i ++ ") => ("
             ++ newState ++ ", " ++ newInput `Seq.index` i ++ ", "
             ++ showDirection newDir ++ ")  Index: " ++ show i
         putTape input i
         putStrLn ""
-        showResult m newState newInput (if newDir i < 0 then -1 else newDir i)
+        showResult m newState newInput inputSize (if newDir i < 0 then -1 else newDir i) (stepNb + 1)
     | otherwise = die "Error: Transition not found."
     where
         computed
@@ -121,5 +125,5 @@ main = do
                 let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
                 putStr "Test seq: "
                 print mySeq
-                showResult x (initial x) mySeq 0
+                showResult x (initial x) mySeq (Seq.length mySeq) 0 0
             Left y -> putStrLn y
