@@ -1,6 +1,6 @@
 
 NAME = alan_machine
-
+GHC ?= ghc
 SRCD = src
 FILES_ = main Complexity Turing
 FILES = $(addprefix $(SRCD)/,$(FILES_))
@@ -17,13 +17,13 @@ all: $(NAME)
 tools: $(TOOLS)
 
 $(ENCODE_TOOL): $(ENCODE_TOOL_SRC)
-	ghc --make -i$(SRCD) $< -o $@
+	$(GHC) --make -i$(SRCD) $< -o $@
 
 ghc_depend:
 	cabal install --only-dependencies
 
 $(NAME): $(SOURCES)
-	ghc --make -i$(SRCD) $(MAIN_MODULE_SOURCE) -o $@
+	$(GHC) --make -i$(SRCD) $(MAIN_MODULE_SOURCE) -o $@
 
 clean:
 	rm -f $(OBJS)

@@ -2,13 +2,22 @@ module Complexity (fac,showComplexity) where
 
 import Data.List
 
-data BigOFamily = O1 | OLogn | On | OnLogn | Onp2 | O2pn | Ofacn deriving (Enum, Bounded, Show)
+data BigOFamily = O1 | OLogn | On | OnLogn | Onp2 | O2pn | Ofacn deriving (Enum, Bounded)
+
+instance Show BigOFamily where
+    show O1 = "O(1)"
+    show OLogn = "O(log n)"
+    show On = "O(n)"
+    show OnLogn = "O(n*log n)"
+    show Onp2 = "O(n²)"
+    show O2pn = "O(2ⁿ)"
+    show Ofacn = "O(n!)"
 
 fac :: (Num a, Eq a, Enum a) => a -> a
 fac 0 = 1
 fac n = foldl' (*) 1 [1..n]
 
--- Takes a couple of integers : 
+-- Takes a couple of integers :
 -- be N: the size of the input, in symbols
 -- be Q: the number of operations upon successfully terminating a computation.
 -- Computes a prospective value Q' for each time complexity profile;
@@ -38,7 +47,7 @@ showComplexity p =
             -- Ordering: Decreasing absolute proximity to 1.0
         in let closestToOne (_,l) (_,r) = compare (abs$ 1 - l) (abs$ 1 - r)
                complexities = sortBy closestToOne
-                    $zip 
+                    $zip
                     ([minBound .. maxBound] :: [BigOFamily])
                     (map (\f -> f inputSize) transforms)
                dbg = "Computed delta zips:\n" ++ (unlines$ map show complexities)
