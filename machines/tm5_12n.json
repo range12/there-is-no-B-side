@@ -1,0 +1,18 @@
+{
+	"name" : "12n",
+		"alphabet": [ "1", "=", ".", "+" ],
+		"blank" : ".",
+		"states" : [ "A", "B", "C" ],
+		"initial" : "A",
+		"finals" : [ "C" ],
+		"transitions" : {
+			"A": [
+				{ "read" : "1", "to_state": "B" , "write": "1", "action": "RIGHT"},
+				{ "read" : "=", "to_state": "C" , "write": "+", "action": "RIGHT"}
+			],
+			"B": [
+				{ "read" : "1", "to_state": "A" , "write": "1", "action": "RIGHT"},
+				{ "read" : "=", "to_state": "C" , "write": "=", "action": "RIGHT"}
+			]
+		}
+}

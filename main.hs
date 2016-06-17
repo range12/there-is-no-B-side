@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Main where
 
+import           Complexity
 import qualified Data.Aeson           as Aeson
 import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.List            as List
@@ -9,7 +10,6 @@ import qualified Data.Sequence        as Seq
 import           System.Environment   (getArgs)
 import           System.Exit          (die)
 import           Turing
-import Complexity
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
 legitElements [] _ tokens = tokens
@@ -59,7 +59,8 @@ putTape :: Seq.Seq String -> Int -> IO ()
 putTape input current = let
     symbolsIOs = Seq.foldrWithIndex putSymbol [] input where
         putSymbol i sym result
-            | i == current && i == Seq.length input  - 1 =  putStr  ("<" ++ sym ++ ">") : result
+            | i == current && i == Seq.length input  - 1 =
+                putStr  ("<" ++ sym ++ ">") : result
             | i == current = putStr ("<" ++ sym) : result
             | i == current + 1 = putStr (">" ++ sym) : result
             | otherwise = putStr (" " ++ sym) : result
@@ -71,8 +72,8 @@ showDirection f
     | f 0 == 1  = "→"
     | otherwise = "ERROR"
 
-showResult :: Machine -> String -> Seq.Seq String -> Int -> Int -> Int -> IO ()
-showResult m currentState input inputSize i stepNb
+putResult :: Machine -> String -> Seq.Seq String -> Int -> Int -> Int -> IO ()
+putResult m currentState input inputSize i stepNb
     | currentState `elem` finals m = do
         putStrLn "The END"
         print input
@@ -83,7 +84,7 @@ showResult m currentState input inputSize i stepNb
             ++ showDirection newDir ++ ")  Index: " ++ show i
         putTape input i
         putStrLn ""
-        showResult m newState newInput inputSize (if newDir i < 0 then -1 else newDir i) (stepNb + 1)
+        putResult m newState newInput inputSize newIndex (stepNb + 1)
     | otherwise = die "Error: Transition not found."
     where
         computed
@@ -93,6 +94,7 @@ showResult m currentState input inputSize i stepNb
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
         newDir = case computed of (_, _, op) -> op
+        newIndex = if newDir i < 0 then -1 else newDir i
 
 showMachine :: Machine -> IO ()
 showMachine x = do
@@ -125,5 +127,7 @@ main = do
                 let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
                 putStr "Test seq: "
                 print mySeq
-                showResult x (initial x) mySeq (Seq.length mySeq) 0 0
+                if Seq.length mySeq == 0 && not (null (args !! 1))
+                    then putStrLn "Error: wrong input"
+                    else putResult x (initial x) mySeq (Seq.length mySeq) 0 0
             Left y -> putStrLn y
