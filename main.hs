@@ -10,6 +10,7 @@ import qualified Data.Sequence        as Seq
 import           System.Environment   (getArgs)
 import           System.Exit          (die)
 import           Turing
+import Debug.Trace
 
 legitElements :: [String] -> String -> [(String, Int)] -> [(String, Int)]
 legitElements [] _ tokens = tokens
@@ -47,7 +48,7 @@ computeHelper (Just t) input f i = (to_state t, Seq.update i (write t) input, f)
 
 -- transitions -> current state -> input -> index
 compute :: Map.Map String [Transition] -> String -> Seq.Seq String -> Int -> (String, Seq.Seq String, Int -> Int)
-compute tsMap state input i = computeHelper goodTrans input dir i where
+compute tsMap state input i = trace ("compute i " ++ show i ++ " input: " ++ show input) $ computeHelper goodTrans input dir i where
     currentSymbol = Seq.index input i
     ts = tsMap Map.! state
     goodTrans = List.find (\x -> Turing.read x == currentSymbol) ts -- returns THE Transition
@@ -89,7 +90,7 @@ putResult m currentState input inputSize i stepNb
     where
         computed
             | i == -1 = compute (transitions m) currentState (blank m Seq.<| input) 0
-            | i <= Seq.length input - 1 = compute (transitions m) currentState input i
+            | i < Seq.length input - 1 = compute (transitions m) currentState input i
             | otherwise = compute (transitions m) currentState (input Seq.|> blank m) i
         newState = case computed of (a, _, _) -> a
         newInput = case computed of (_, a, _) -> a
@@ -125,9 +126,11 @@ main = do
                 showMachine x
                 putStrLn $ args !! 1 ++ "\n"
                 let mySeq = genInputSeq (args !! 1) (filter (\y -> y /= blank x) (alphabet x)) Seq.empty
-                putStr "Test seq: "
+                putStr $ "Test seq " ++ show (Seq.length mySeq) ++ ": "
                 print mySeq
-                if Seq.length mySeq == 0 && not (null (args !! 1))
-                    then putStrLn "Error: wrong input"
-                    else putResult x (initial x) mySeq (Seq.length mySeq) 0 0
+                if Seq.length mySeq > 0
+                    then putResult x (initial x) mySeq (Seq.length mySeq) 0 0
+                    else if not (null (args !! 1))
+                        then putStrLn "Error: wrong input"
+                        else putResult x (initial x) (Seq.singleton $ blank x) (Seq.length mySeq) 0 0
             Left y -> putStrLn y
