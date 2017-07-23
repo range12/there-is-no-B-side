@@ -33,8 +33,7 @@ encodeTransitions transMap finalStates True  =
     in Map.foldrWithKey encodeTransLst "" transMap
 encodeTransitions transMap finalStates False =
     let encodeTransLst state ts acc = foldr (\x y -> y ++ "&TRANS" ++ state
-            ++ read x ++ to_state x ++ write x
-            ++ (getMove x $ to_state x `elem` finalStates)) acc ts
+            ++ read x ++ to_state x ++ write x ++ getMove x (to_state x `elem` finalStates)) acc ts
     in Map.foldrWithKey encodeTransLst "" transMap
 
 encodeMachine :: Machine -> String -> Bool -> String

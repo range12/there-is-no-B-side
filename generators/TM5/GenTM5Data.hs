@@ -43,8 +43,8 @@ import Control.Lens
 -- DBG --
 import System.IO.Unsafe
 
-wildShow :: (Show a) => a -> a
-wildShow showMe = unsafePerformIO $ print showMe >> return showMe
+unsafePeek :: (Show a) => a -> a
+unsafePeek showMe = unsafePerformIO $ print showMe >> return showMe
 
 -- DBG -- 
 
@@ -180,7 +180,7 @@ gatherSyms (sym:ls) = do
     let gathered = Set.toList$ pool `Set.intersection` gotSyms
         in  return . (++) gathered =<< gatherSyms ls
     where -- -- -- -- -- -- -- Helpers -- -- -- -- -- -- --
-        spliceOut exon txt = T.concat$ T.splitOn exon txt
+        spliceOut intron txt = T.concat$ T.splitOn intron txt
         resolveSelector :: (?dbgInfo :: String) => Bool -> Text -> Reader Env Text
         resolveSelector isRcp remainder = do
             readEnt <- asks readEntry
@@ -232,7 +232,7 @@ instantiateTrans ((is,os):lio) = do
                                      (repeat skToSt)
                                      (paramsSI <$> lsStates)
                 in do
---    return $ seq (wildShow curSt) ()
+--    return $ seq (unsafePeek curSt) ()
     put iRemPool
     instantiateTrans lio
     >>= return . (++) (filter (\tr -> to_state (cTransRCT tr) /= parentState) cTrans)

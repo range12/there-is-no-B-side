@@ -44,14 +44,15 @@ constructDoc = do
     if null alpha then
         let setAlpha = over alphabet . set freeSymbols
             in local (setAlpha defaultAlphabet) constructDoc
-    else do
-    let gatherers = [getTags, getTapeSyms, getAlpha]
-        collec = concat (gatherers <*> pure doc)
-        setterM = return . if null rcp
-        then let genRCP = makeReciprocal alpha
-                 in setCollection collec . setRcp genRCP
-        else setCollection collec
-        in ask >>= setterM
+    else
+        let gatherers = [getTags, getTapeSyms, getAlpha]
+            collec = concat (gatherers <*> pure doc)
+            setterM = return .
+                if null rcp
+                then let genRCP = makeReciprocal alpha
+                         in setCollection collec . setRcp genRCP
+                else setCollection collec
+            in ask >>= setterM
 
 
 main = do
