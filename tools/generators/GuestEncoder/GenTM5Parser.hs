@@ -67,6 +67,17 @@ data TM5Doc = TM5Doc {
 
 $(makeLenses ''TM5Doc)
 
+data ShallowTM5 = ShallowTM5 {
+    _formatSpec :: Text
+    , _alpha :: AlphabetDoc
+    , _tapeAct :: (Text, Text)
+    , _templatePats :: GenTemplates
+    , _transis :: ()
+    , _specialStates :: ()
+} deriving (Show, Generic)
+
+$(makeLenses ''ShallowTM5)
+
 refTM5Doc :: IORef TM5Doc
 refTM5Doc = unsafeDupablePerformIO$ unsafeInterleaveIO$ newIORef undefined
 
@@ -100,8 +111,8 @@ instance FromJSON AlphabetDoc where
             flattenAry (Array a) = arrayOfText a
             flattenAry (String t) = return [t]
             flattenAry w = typeMismatch "flattenAry:" w
- 
-    
+
+
     parseJSON w = typeMismatch "!object representing AlphabetDoc!" w
 
 
@@ -119,11 +130,11 @@ instance FromJSON M5Transition where
                         liftM2 (,) (return l) (valueToText r)
 
     parseJSON w = typeMismatch "!object representing M5Transition!" w
-        
+
 
 instance FromJSON TM5Doc where
     parseJSON (Object o) = TM5Doc
-        <$> o .: "Alphabet" 
+        <$> o .: "Alphabet"
         <*> (o .: "Actions" >>= seqOfTwo)
         <*> o .: "Patterns"
         <*> o .: "Transitions"
@@ -135,7 +146,7 @@ instance FromJSON TM5Doc where
                     if V.length a /= 2
                         then mzero
                         else liftM2 (,) (valueToText$ a V.! 0) (valueToText$ a V.! 1)
-                                        
+
 
     parseJSON w = typeMismatch "!object representing TM5Doc!" w
 
@@ -148,3 +159,20 @@ instance FromJSON GenTemplates where
         <*> o .: "Repeat_current_state_pattern"
 
     parseJSON w = typeMismatch "!object representing GenTemplates!" w
+
+instance FromJSON ShallowTM5 where
+    parseJSON (Object o) = ShallowTM5
+        <$> o .: "Format_input_model"
+        <*> o .: "Alphabet"
+        <*> (o .: "Actions" >>= seqOfTwo)
+        <*> o .: "Patterns"
+        <*> return ()
+        <*> return ()
+            where
+                seqOfTwo = withArray "Sequence of 2" $ \a ->
+                    if V.length a /= 2
+                        then mzero
+                        else liftM2 (,) (valueToText$ a V.! 0) (valueToText$ a V.! 1)
+
+
+    parseJSON w = typeMismatch "!object representing SHAALOWTM5Doc!" w

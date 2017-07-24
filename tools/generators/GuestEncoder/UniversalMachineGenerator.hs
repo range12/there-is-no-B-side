@@ -19,7 +19,7 @@ import Control.Lens
 import Data.IORef
 import System.IO.Unsafe
 
-import GenTM5Data
+-- import GenTM5Data
 
 
 skellFile = "tm5_skel.yml"
@@ -55,11 +55,13 @@ constructDoc = do
             in ask >>= setterM
 
 
+
 main = do
     dump <- B.readFile skellFile
-    let eitherTm5 = Y.decodeEither dump :: Either String TM5Doc
+    -- let eitherTm5 = Y.decodeEither dump :: Either String TM5Doc
+    let eitherTm5 = Y.decodeEither dump :: Either String ShallowTM5
     case eitherTm5 of
         Left err -> putStrLn err >> exitFailure
-        Right doc -> writeIORef refTM5Doc (runReader constructDoc doc)
-    BL.writeFile outputFile (encodePretty instantiateDoc `BL.append` "\n")
-    putStrLn $ "Success ! File " ++ outputFile ++ " has been written."
+        Right doc -> print doc
+    -- BL.writeFile outputFile (encodePretty instantiateDoc `BL.append` "\n")
+    -- putStrLn $ "Success ! File " ++ outputFile ++ " has been written."

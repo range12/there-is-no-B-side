@@ -188,8 +188,7 @@ gatherSyms (sym:ls) = do
             let morphRcpM dbg t = return $ if isRcp
                 then
                     let ?dbgInfo = ?dbgInfo ++ dbg++ "->gatherSyms:RCP: [" ++ T.unpack t ++ "]" in resolveRCP t
-                else id t
-                in do
+                else t
             case remainder of
                  rem 
                      | T.isInfixOf getPlaceHolder rem ->
@@ -231,11 +230,10 @@ instantiateTrans ((is,os):lio) = do
                                      serialCTrans
                                      (repeat skToSt)
                                      (paramsSI <$> lsStates)
-                in do
---    return $ seq (unsafePeek curSt) ()
-    put iRemPool
-    instantiateTrans lio
-    >>= return . (++) (filter (\tr -> to_state (cTransRCT tr) /= parentState) cTrans)
+                -- in return $ seq (unsafePeek curSt) ()
+                in  put iRemPool
+                    instantiateTrans lio
+                    >>= return . (++) (filter (\tr -> to_state (cTransRCT tr) /= parentState) cTrans)
 
 
 -- ForEach I:O couple
@@ -266,9 +264,8 @@ makeTransitions si@(SI parentState pParams) lSkellTr = foldM instantiateCondense
                         flip runReader (si, saneSkellTr)
                         $ runStateT (instantiateTrans iol) pool
                         :: ([RichCTransition], Set Text)
-                in do
-        put remPool
-        foldM foldingLRCTrM accuHM ((:[]) <$> lRichTr)
+                in  put remPool
+                    foldM foldingLRCTrM accuHM ((:[]) <$> lRichTr)
 
 
 
@@ -316,11 +313,11 @@ data LocalEnv = LEnv {
 }
 $(makeLenses ''LocalEnv)
 
-data MetaEnv = MEnv {
-    _finals :: Set Text
-    , _wipTrans :: WIPTransitions
-}
-$(makeLenses ''MetaEnv)
+-- data MetaEnv = MEnv {
+--     _finals :: Set Text
+--     , _wipTrans :: WIPTransitions
+-- }
+-- $(makeLenses ''MetaEnv)
 
 
 
@@ -331,23 +328,22 @@ resolveTemplateSym tSym = do
     used <- asks _usedSyms
     readEnt <- asks _curRead
     let inter l = (used \\ getExhaustiveSet) `intersection` l
-    return$ case tSym of
+    return $ case tSym of
         getGlobAny -> inter getCollection
         getGlobFree -> inter getFreeSyms
-        _ 
-          | T.isInfixOf getPlaceHolder tSym -> inter$ paramFromSelector tSym : []
-          | case T.breakOn getSameAsRead tSym ->
-                (a,b)| not$ T.null b -> inter$ resolveStatic (T.concat a readEnt) : []
-                     | otherwise -> inter$ resolveStatic a : []
+        tSym | T.isInfixOf getPlaceHolder tSym -> inter $ paramFromSelector [tSym]
+        tSym -> case T.breakOn getSameAsRead tSym of
+                (a,b)| not (T.null b) -> inter [resolveStatic (T.concat a readEnt)]
+                _  -> inter [resolveStatic a]
     where
         resolveStatic sym = if T.isInfixOf getRCPOf sym then resolveRCP sym else sym
 
 
 -- depth first...
-rebootMakeTrans :: StateT MetaEnv
-                   (Reader LocalEnv)
-                   ()
-rebootMakeTrans = do
+-- rebootMakeTrans :: StateT MetaEnv
+--                    (Reader LocalEnv)
+--                    ()
+-- rebootMakeTrans = do
     
     
 
