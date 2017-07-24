@@ -5,9 +5,8 @@ name:                alan-machine
 version:             0.1.0.0
 -- synopsis:            
 -- description:         
--- license:             
--- license-file:        LICENSE
-author:              Florian Fouratier
+license:             MIT
+license-file:        LICENSE
 maintainer:          ffourati@student.42.fr
 -- copyright:           
 -- category:            
